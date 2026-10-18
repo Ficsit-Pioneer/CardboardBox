@@ -247,6 +247,8 @@ namespace CardboardBox.Core
                 RestartNeeded = false;
                 LastError = null;
                 Log.Info("Server starting with " + (RamMB / 1024.0).ToString("0.#") + " GB of RAM. The first start takes a minute or two.");
+                if (!Directory.Exists(Path.Combine(AppPaths.Server, "libraries")))
+                    Log.Info("First start: if Windows asks about \"OpenJDK Platform binary\", click Allow so friends can connect.");
                 return true;
             }
             catch (Exception ex)

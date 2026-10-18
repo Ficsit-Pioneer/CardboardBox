@@ -72,7 +72,7 @@ namespace CardboardBox.UI
             // ---------- status bar
             var statusBar = new Panel { Dock = DockStyle.Bottom, Height = 30, BackColor = Color.FromArgb(0xEA, 0xE2, 0xD5), Padding = new Padding(12, 0, 12, 0) };
             _statusDot = new Label { Text = "\u25cf", ForeColor = Theme.Gray, AutoSize = true, Font = new Font("Segoe UI", 11f), Location = new Point(10, 4) };
-            _statusText = new Label { Text = "Getting ready...", AutoSize = true, ForeColor = Theme.Text, Location = new Point(30, 7) };
+            _statusText = new Label { Text = "Getting ready...", UseMnemonic = false, AutoSize = true, ForeColor = Theme.Text, Location = new Point(30, 7) };
             _progress = new ProgressBar { Width = 220, Height = 14, Anchor = AnchorStyles.Right | AnchorStyles.Top, Visible = false, Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 30 };
             statusBar.Controls.Add(_statusDot);
             statusBar.Controls.Add(_statusText);

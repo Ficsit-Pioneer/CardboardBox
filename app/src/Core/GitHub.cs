@@ -50,51 +50,48 @@ namespace CardboardBox.Core
             return h;
         }
 
-        /// <summary>Gets the newest commit on the branch. Falls back to the git protocol if the API is rate-limited.</summary>
-        public async Task<CommitInfo> GetLatestCommitAsync()
+        /// <summary>
+        /// Gets the newest commit on the branch. The commit id comes from git's own endpoint, which is
+        /// always fresh and has no rate limit (the REST API caches anonymous answers for ~60 s).
+        /// The REST API is then only asked for the message of a commit we haven't seen yet.
+        /// </summary>
+        public async Task<CommitInfo> GetLatestCommitAsync(CommitInfo known = null)
         {
-            Net.Response r = null;
+            var sha = await LsRemoteAsync().ConfigureAwait(false);
+            if (known != null && known.Sha == sha) return known;
+
+            var info = new CommitInfo { Sha = sha, Message = "" };
             try
             {
-                r = await Net.SendAsync(HttpMethod.Get, ApiBase + "/commits/" + Uri.EscapeDataString(_settings.Branch), Headers()).ConfigureAwait(false);
-            }
-            catch (FriendlyException)
-            {
-                // API unreachable: try the plain git endpoint below before giving up.
-            }
-
-            if (r != null && r.Ok)
-            {
-                var d = Json.ParseObject(r.Body);
-                var commit = d.Obj("commit");
-                return new CommitInfo
+                var r = await Net.SendAsync(HttpMethod.Get, ApiBase + "/commits/" + sha, Headers(), attempts: 1).ConfigureAwait(false);
+                if (r.Ok)
                 {
-                    Sha = d.Str("sha"),
-                    Message = (commit.Str("message") ?? "").Split('\n')[0].Trim(),
-                    Date = commit.Obj("committer").Str("date") ?? commit.Obj("author").Str("date"),
-                };
+                    var commit = Json.ParseObject(r.Body).Obj("commit");
+                    info.Message = (commit.Str("message") ?? "").Split('\n')[0].Trim();
+                    info.Date = commit.Obj("committer").Str("date") ?? commit.Obj("author").Str("date");
+                }
             }
-            if (r != null && (r.Status == HttpStatusCode.NotFound || r.Status == (HttpStatusCode)422))
-                throw new FriendlyException("The GitHub repo " + _settings.RepoSlug + " (branch \"" + _settings.Branch + "\") wasn't found.",
-                    "Check the repo name on the GitHub page, and make sure the repo is public.");
-            if (r != null && r.Status == HttpStatusCode.Unauthorized)
-                throw new FriendlyException("GitHub rejected the saved token.", "Remove or replace it on the GitHub page.");
-
-            // 403/429 = rate limited, or the API is down: ask git directly (no rate limit).
-            var sha = await LsRemoteAsync().ConfigureAwait(false);
-            return new CommitInfo { Sha = sha, Message = "(details unavailable - GitHub API busy)" };
+            catch (Exception ex)
+            {
+                Log.WriteFileOnly("INFO commit details unavailable: " + ex.Message); // only cosmetic
+            }
+            return info;
         }
 
+        /// <summary>Same as "git ls-remote": asks GitHub which commit the branch points at.</summary>
         private async Task<string> LsRemoteAsync()
         {
             var url = "https://github.com/" + _settings.RepoSlug + ".git/info/refs?service=git-upload-pack";
             var r = await Net.SendAsync(HttpMethod.Get, url).ConfigureAwait(false);
+            if (r.Status == HttpStatusCode.Unauthorized || r.Status == HttpStatusCode.NotFound)
+                throw new FriendlyException("The GitHub repo " + _settings.RepoSlug + " wasn't found.",
+                    "Check the repo name on the GitHub page, and make sure the repo is public.");
             if (!r.Ok)
-                throw new FriendlyException("Couldn't read the GitHub repo " + _settings.RepoSlug + " (error " + (int)r.Status + ").",
-                    "Make sure the repo exists and is public.");
+                throw new FriendlyException("GitHub answered with error " + (int)r.Status + " for " + _settings.RepoSlug + ".", "It will be retried shortly.");
             var m = Regex.Match(r.Body, "([0-9a-f]{40}) refs/heads/" + Regex.Escape(_settings.Branch) + "(\\s|\\x00|$)");
             if (!m.Success)
-                throw new FriendlyException("The branch \"" + _settings.Branch + "\" doesn't exist in " + _settings.RepoSlug + ".");
+                throw new FriendlyException("The branch \"" + _settings.Branch + "\" doesn't exist in " + _settings.RepoSlug + ".",
+                    "Check the branch name on the GitHub page (usually \"main\").");
             return m.Groups[1].Value;
         }
 

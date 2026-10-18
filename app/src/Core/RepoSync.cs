@@ -52,10 +52,15 @@ namespace CardboardBox.Core
 
                     var hash = Hash.FileSha256(file);
                     newMap[rel] = hash;
-                    if (rel.Equals("server.properties", StringComparison.OrdinalIgnoreCase)) continue;
+                    state.SyncedFiles.TryGetValue(rel, out var previous);
+                    if (rel.Equals("server.properties", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // merged key-by-key later (ServerProperties.BuildLive)
+                        if (!string.Equals(previous, hash, StringComparison.OrdinalIgnoreCase)) result.Updated.Add(rel);
+                        continue;
+                    }
 
                     var dest = Path.Combine(AppPaths.Server, rel);
-                    state.SyncedFiles.TryGetValue(rel, out var previous);
 
                     if (!File.Exists(dest))
                     {

@@ -47,16 +47,17 @@ namespace CardboardBox.Core
             return null;
         }
 
+        /// <summary>
+        /// True if nothing is listening on the port. Only looks at the list of open ports, so it never
+        /// opens a socket itself (which could make Windows Firewall ask about CardboardBox).
+        /// </summary>
         public static bool IsPortFree(int port)
         {
             try
             {
-                var l = new TcpListener(IPAddress.Any, port);
-                l.Start();
-                l.Stop();
-                return true;
+                return !IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpListeners().Any(ep => ep.Port == port);
             }
-            catch (SocketException) { return false; }
+            catch { return true; }
         }
 
         /// <summary>

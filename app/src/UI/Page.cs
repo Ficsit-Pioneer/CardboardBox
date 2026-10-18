@@ -80,9 +80,9 @@ namespace CardboardBox.UI
             MessageBox.Show(this, text, title, MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
 
         protected static Label FieldLabel(string text) =>
-            new Label { Text = text, AutoSize = true, Font = Theme.Bold, ForeColor = Theme.Text, Margin = new Padding(0, 8, 0, 2) };
+            new Label { Text = text, AutoSize = true, Font = Theme.Bold, ForeColor = Theme.Text, Margin = new Padding(0, 8, 0, 2), UseMnemonic = false };
 
         protected static Label Hint(string text) =>
-            new Label { Text = text, AutoSize = true, MaximumSize = new Size(520, 0), Font = Theme.Small, ForeColor = Theme.Muted, Margin = new Padding(0, 0, 0, 4) };
+            new Label { Text = text, AutoSize = true, MaximumSize = new Size(520, 0), Font = Theme.Small, ForeColor = Theme.Muted, Margin = new Padding(0, 0, 0, 4), UseMnemonic = false };
     }
 }

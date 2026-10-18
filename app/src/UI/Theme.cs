@@ -73,6 +73,14 @@ namespace CardboardBox.UI
             b.FlatAppearance.BorderSize = 1;
             b.FlatAppearance.MouseOverBackColor = ControlPaint.Light(back, 0.15f);
             b.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(back, 0.05f);
+            // Flat buttons don't look disabled on their own - grey them out explicitly.
+            b.EnabledChanged += (s, e) =>
+            {
+                b.BackColor = b.Enabled ? back : Color.FromArgb(0xEC, 0xE6, 0xDC);
+                b.ForeColor = b.Enabled ? fore : Gray;
+                b.FlatAppearance.BorderColor = b.Enabled ? border : Border;
+                b.Cursor = b.Enabled ? Cursors.Hand : Cursors.Default;
+            };
             return b;
         }
 
@@ -86,6 +94,7 @@ namespace CardboardBox.UI
                 ForeColor = color ?? Text,
                 Margin = new Padding(0, 0, 0, 4),
                 BackColor = Color.Transparent,
+                UseMnemonic = false,
             };
         }
 

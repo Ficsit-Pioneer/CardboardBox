@@ -13,7 +13,8 @@ One small <code>.exe</code>. No installs, no command line, no port-forwarding gu
 2. Double-click it. If Windows says *"Windows protected your PC"*, click **More info**, then **Run anyway**.
    (This shows up for any new program that isn't from a big company.)
 3. Wait for it to finish setting up (the first time it downloads Java and Minecraft, about 120 MB).
-4. Press **Start server**, agree to the Minecraft EULA, and you're done.
+4. Press **Start server** and agree to the Minecraft EULA. If Windows asks about
+   **"OpenJDK Platform binary"**, click **Allow** (that's the Minecraft server; friends can't connect without it). Done!
 
 Friends on the same Wi-Fi join using the **Home network address** shown on the Dashboard.
 Friends elsewhere use the **Internet address**. Try the **Auto port-forward** link first. If your router

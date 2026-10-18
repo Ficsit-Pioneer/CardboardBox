@@ -113,8 +113,8 @@ namespace CardboardBox.UI
             DoubleBuffered = true;
 
             Title = new Label { Text = title.ToUpperInvariant(), Font = Theme.Small, ForeColor = Theme.Muted, AutoSize = true, Dock = DockStyle.Top };
-            Value = new Label { Text = "-", Font = Theme.Big, ForeColor = Theme.Text, AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(0, 2, 0, 0) };
-            Detail = new Label { Text = "", Font = Theme.Small, ForeColor = Theme.Muted, AutoSize = false, Dock = DockStyle.Top, Height = 34 };
+            Value = new Label { Text = "-", UseMnemonic = false, Font = Theme.Big, ForeColor = Theme.Text, AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(0, 2, 0, 0) };
+            Detail = new Label { Text = "", UseMnemonic = false, Font = Theme.Small, ForeColor = Theme.Muted, AutoSize = false, Dock = DockStyle.Top, Height = 34 };
             if (withChart)
             {
                 Chart = new Sparkline { Dock = DockStyle.Bottom, Height = 34 };

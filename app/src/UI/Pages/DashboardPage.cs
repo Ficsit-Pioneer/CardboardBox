@@ -24,7 +24,7 @@ namespace CardboardBox.UI.Pages
             // ---------- status card
             var statusCard = new Card(null);
             _status = new Label { Text = "\u25cf  Stopped", Font = new Font("Segoe UI Semibold", 20f), AutoSize = true, ForeColor = Theme.Gray };
-            _statusDetail = new Label { Text = "", AutoSize = true, MaximumSize = new Size(900, 0), ForeColor = Theme.Muted, Margin = new Padding(2, 0, 0, 10) };
+            _statusDetail = new Label { Text = "", UseMnemonic = false, AutoSize = true, MaximumSize = new Size(900, 0), ForeColor = Theme.Muted, Margin = new Padding(2, 0, 0, 10) };
             _start = Theme.Good("\u25b6  Start server");
             _stop = Theme.Secondary("\u25a0  Stop");
             _restart = Theme.Secondary("\u21bb  Restart");
@@ -68,12 +68,12 @@ namespace CardboardBox.UI.Pages
 
             // ---------- announcement + activity
             _announceCard = new Card("Message from the server owner");
-            _announcement = new Label { AutoSize = true, MaximumSize = new Size(420, 0), ForeColor = Theme.Text };
+            _announcement = new Label { UseMnemonic = false, AutoSize = true, MaximumSize = new Size(420, 0), ForeColor = Theme.Text };
             _announceCard.Add(_announcement, Hint("Set by \"announcement\" in cardboardbox.json on GitHub."));
             Place(_announceCard, 2);
 
             var activityCard = new Card("Recent activity");
-            _activity = new Label { AutoSize = true, MaximumSize = new Size(440, 0), ForeColor = Theme.Text, Font = Theme.Small };
+            _activity = new Label { UseMnemonic = false, AutoSize = true, MaximumSize = new Size(440, 0), ForeColor = Theme.Text, Font = Theme.Small };
             activityCard.Add(_activity, Theme.Link("Open the Console page for everything", () => Main.ShowPage(Main.ConsoleView)));
             Place(activityCard, 2);
 

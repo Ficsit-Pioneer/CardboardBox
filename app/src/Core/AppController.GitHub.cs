@@ -29,7 +29,9 @@ namespace CardboardBox.Core
         /// <summary>Downloads the newest commit into cache\repo (does not touch the server). True if it differs from what's applied.</summary>
         private async Task<bool> DownloadLatestFromGitHubAsync()
         {
-            var commit = await GitHub.GetLatestCommitAsync();
+            var known = LatestCommit ?? (State.AppliedSha == null ? null
+                : new CommitInfo { Sha = State.AppliedSha, Message = State.AppliedMessage, Date = State.AppliedDate });
+            var commit = await GitHub.GetLatestCommitAsync(known);
             LatestCommit = commit;
             State.LastCheckUtc = DateTime.UtcNow;
 
@@ -107,7 +109,9 @@ namespace CardboardBox.Core
                 {
                     Log.Info("New changes on GitHub: \"" + LatestCommit.Message + "\" - applying them now.");
                     ApplySnapshot();
-                    _ = PrepareInBackgroundAsync();
+                    // Also fetch new plugins / Paper builds now, so the next start is instant.
+                    try { await PrepareAsync(); }
+                    catch (Exception ex) { Log.Warn("Some downloads didn't finish (they'll be retried when the server starts): " + Errors.Friendly(ex)); }
                 }
                 else
                 {
@@ -131,15 +135,6 @@ namespace CardboardBox.Core
 
             if (restartForUpdate) _ = RestartForUpdateAsync();
             await CheckForAppUpdateAsync(manual);
-        }
-
-        /// <summary>After new files arrive while stopped, also fetch any new plugins / Paper build right away.</summary>
-        private async Task PrepareInBackgroundAsync()
-        {
-            if (!await _op.WaitAsync(0)) return;
-            try { await PrepareAsync(); }
-            catch (Exception ex) { Log.Warn("Some downloads didn't finish (they'll be retried when the server starts): " + Errors.Friendly(ex)); }
-            finally { ClearBusy(); _op.Release(); }
         }
 
         /// <summary>Warns players in-game, then restarts so a GitHub update takes effect.</summary>

@@ -32,7 +32,7 @@ namespace CardboardBox.UI.Pages
             _list = new ListView
             {
                 View = View.Details, FullRowSelect = true, MultiSelect = false, HideSelection = false,
-                Width = 860, Height = 340, BorderStyle = BorderStyle.FixedSingle, Font = Theme.Base,
+                Width = 860, Height = 300, BorderStyle = BorderStyle.FixedSingle, Font = Theme.Base,
             };
             _list.Columns.Add("Plugin", 200);
             _list.Columns.Add("Version", 110);
@@ -54,10 +54,8 @@ namespace CardboardBox.UI.Pages
             folder.Click += (s, e) => Theme.OpenFolder(AppPaths.Plugins);
             var find = Theme.Secondary("Find plugins online");
             find.Click += (s, e) => Theme.OpenUrl("https://modrinth.com/plugins?l=paper");
-            var refresh = Theme.Secondary("Refresh");
-            refresh.Click += (s, e) => RefreshView();
 
-            card.Add(_list, Theme.Row(_add, _toggle, _remove, _upload, folder, find, refresh));
+            card.Add(_list, Theme.Row(_add, _toggle, _remove, _upload, folder, find));
             Place(card);
 
             var help = new Card("Where plugins come from");
