@@ -1,0 +1,43 @@
+# Builds CardboardBox.exe on GitHub's Windows machines.
+# Push a tag like v1.0.1 and the exe is attached to a GitHub Release automatically;
+# every running CardboardBox then offers the update with one click.
+name: Build CardboardBox
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart('v')
+          if ($v -notmatch '^\d+\.\d+\.\d+$') { $v = '0.0.0' }
+          ./build.ps1 -Version $v
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CardboardBox
+          path: dist/CardboardBox.exe
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "${{ github.ref_name }}" *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create "${{ github.ref_name }}" dist/CardboardBox.exe --title "CardboardBox ${{ github.ref_name }}" --generate-notes
+          } else {
+            gh release upload "${{ github.ref_name }}" dist/CardboardBox.exe --clobber
+          }

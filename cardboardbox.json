@@ -1,0 +1,11 @@
+{
+  "_help": "This file tells every CardboardBox what to install. Edit it on GitHub - all servers pick up the change within an hour. See README.md for every option.",
+  "serverName": "CardboardBox",
+  "minecraftVersion": "26.3",
+  "paperBuild": 0,
+  "javaVersion": 0,
+  "defaultRamGB": 4,
+  "announcement": "Welcome to CardboardBox! Press Start, then share the address on the Dashboard with your friends.",
+  "extraJvmFlags": [],
+  "plugins": []
+}

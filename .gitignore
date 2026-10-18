@@ -1,0 +1,19 @@
+# build output
+app/bin/
+app/obj/
+dist/
+*.user
+.vs/
+
+# never commit a running server's data
+server/world*/
+server/logs/
+server/cache/
+server/libraries/
+server/versions/
+server/eula.txt
+server/*.jar
+server/usercache.json
+server/ops.json
+server/banned-*.json
+server/whitelist.json
