@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CardboardBox.Core
@@ -83,7 +84,8 @@ namespace CardboardBox.Core
             var p = new Process { StartInfo = psi, EnableRaisingEvents = true };
             p.OutputDataReceived += (s, e) => HandleLine(e.Data);
             p.ErrorDataReceived += (s, e) => HandleLine(e.Data);
-            p.Exited += (s, e) => OnExited(p);
+            int exitHandled = 0; // Process.Exited can fire more than once on .NET Framework
+            p.Exited += (s, e) => { if (Interlocked.Exchange(ref exitHandled, 1) == 0) OnExited(p); };
 
             lock (_gate) _players.Clear();
             LastProblem = null;

@@ -49,6 +49,7 @@ namespace CardboardBox.Core
             Server.StatusChanged += RaiseChanged;
             Server.PlayersChanged += RaiseChanged;
             Server.Exited += (code, crashed) => _ui.Post(_ => OnServerExited(code, crashed), null);
+            Playit.Changed += RaiseChanged;
         }
 
         public void RaiseChanged() => _ui.Post(_ => { try { Changed?.Invoke(); } catch (Exception ex) { Log.WriteFileOnly("UI refresh failed: " + ex); } }, null);
@@ -249,6 +250,7 @@ namespace CardboardBox.Core
                 Log.Info("Server starting with " + (RamMB / 1024.0).ToString("0.#") + " GB of RAM. The first start takes a minute or two.");
                 if (!Directory.Exists(Path.Combine(AppPaths.Server, "libraries")))
                     Log.Info("First start: if Windows asks about \"OpenJDK Platform binary\", click Allow so friends can connect.");
+                _ = StartPlayitAsync();
                 return true;
             }
             catch (Exception ex)
@@ -274,6 +276,7 @@ namespace CardboardBox.Core
                 SetBusy("Stopping the server and saving the world...");
                 Log.Info("Stopping the server...");
                 await Server.StopAsync();
+                Playit.Stop();
             }
             catch (Exception ex) { Log.Error("Problem while stopping", ex); }
             finally
@@ -311,6 +314,7 @@ namespace CardboardBox.Core
         private async void OnServerExited(int code, bool crashed)
         {
             Native.KeepAwake(false);
+            Playit.Stop();
             if (!crashed)
             {
                 Log.Info("Server stopped.");

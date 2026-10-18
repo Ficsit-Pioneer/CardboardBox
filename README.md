@@ -17,8 +17,17 @@ One small <code>.exe</code>. No installs, no command line, no port-forwarding gu
    **"OpenJDK Platform binary"**, click **Allow** (that's the Minecraft server; friends can't connect without it). Done!
 
 Friends on the same Wi-Fi join using the **Home network address** shown on the Dashboard.
-Friends elsewhere use the **Internet address**. Try the **Auto port-forward** link first. If your router
-doesn't allow it, forward port `25565` (TCP) to this PC in the router settings, or use a free tunnel like [playit.gg](https://playit.gg).
+
+### Letting friends join from anywhere (playit.gg, easiest)
+
+On the Dashboard, click **Use playit.gg (easiest)** under *Internet address*. Your browser opens
+[playit.gg](https://playit.gg): log in or make a free account, then approve CardboardBox. That's it.
+CardboardBox creates a Minecraft tunnel for you and shows an address like `something.joinmc.link`. Send that to friends.
+No router setup is needed, and the tunnel runs automatically whenever the server runs.
+You can switch it off, set it up again or disconnect it on the **Server Settings** page.
+
+Prefer not to use playit.gg? Try the **Auto port-forward** link instead, or forward port `25565` (TCP)
+to this PC in your router settings. Friends then use the internet address shown on the Dashboard.
 
 Everything lives in `C:\Users\<you>\CardboardBox`. The Dashboard has a button to open that folder.
 
@@ -26,9 +35,9 @@ Everything lives in `C:\Users\<you>\CardboardBox`. The Dashboard has a button to
 
 | Page | What it does |
 |---|---|
-| **Dashboard** | Start / Stop / Restart, players online, CPU and RAM (with live charts), uptime, Minecraft version, server addresses, GitHub sync status, a message from the server owner |
+| **Dashboard** | Start / Stop / Restart, players online, CPU and RAM (with live charts), uptime, Minecraft version, server addresses (including your playit.gg address), GitHub sync status, a message from the server owner |
 | **Console** | Live server log, a box to type commands, and quick buttons (who's online, save, TPS, plugins) |
-| **Server Settings** | Server message (MOTD) with a live preview, server icon (any picture, auto-resized), max players, RAM slider, difficulty, game mode, port, whitelist, and auto-restart/backup options |
+| **Server Settings** | Server message (MOTD) with a live preview, server icon (any picture, auto-resized), max players, RAM slider, difficulty, game mode, port, whitelist, playit.gg tunnel, and auto-restart/backup options |
 | **Plugins** | See every plugin, add `.jar` files, turn plugins on/off, remove them, or upload them to GitHub |
 | **Players** | Online / operators / whitelist / banned lists, plus one-click op, kick, ban, whitelist |
 | **Backups** | Back up the world (even while it's running), restore, and keep the newest *N* backups |
@@ -41,6 +50,7 @@ Everything lives in `C:\Users\<you>\CardboardBox`. The Dashboard has a button to
 - **Crash recovery.** If the server crashes it restarts automatically, up to 3 times in 10 minutes.
 - **Plain-English errors.** Common problems (port already in use, not enough RAM, wrong Java, a broken plugin, no internet) are explained on screen.
 - **Works offline.** If GitHub can't be reached, it starts with the files from last time.
+- **playit.gg tunnels.** One browser approval, then CardboardBox creates the tunnel, downloads playit's official signed agent (checksum-verified) and runs it alongside the server.
 - **Never leaves a zombie server.** If CardboardBox is closed or crashes, Java is shut down with it, and the PC won't go to sleep while the server is running.
 - **Updates itself.** When a new release is published here, the app offers a one-click update.
 
@@ -123,7 +133,8 @@ It needs the .NET SDK. The exe itself targets .NET Framework 4.8, which comes wi
 | Problem | Fix |
 |---|---|
 | "Port 25565 is already in use" | Another server is running. Close it, check Task Manager for `java.exe`, or change the port in Server Settings. |
-| Friends outside the house can't join | Port forwarding. Try **Auto port-forward**, forward TCP 25565 in the router, or use playit.gg. |
+| Friends outside the house can't join | Use playit.gg (Dashboard → *Use playit.gg*). Or try **Auto port-forward**, or forward TCP 25565 in the router. |
+| playit.gg says the key was rejected | The agent was removed on playit.gg. On **Server Settings**, press **Set up again...**. |
 | Server crashes with "ran out of memory" | Raise RAM in Server Settings, or remove heavy plugins. |
 | Something else | Open the **Console** page. The full log is in `C:\Users\<you>\CardboardBox\logs`. |
 

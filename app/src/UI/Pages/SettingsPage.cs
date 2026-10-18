@@ -22,6 +22,10 @@ namespace CardboardBox.UI.Pages
         private readonly ComboBox _difficulty, _gamemode;
         private readonly CheckBox _whitelist, _flight, _autoStart, _crashRestart, _updateRestart, _backupFirst, _awake;
         private readonly Button _save, _push, _reset;
+        private readonly Label _playitStatus;
+        private readonly CheckBox _playitOn;
+        private readonly Button _playitSetup, _playitForget;
+        private bool _refreshingPlayit;
         private string _pendingIcon;
         private bool _loading;
 
@@ -74,6 +78,26 @@ namespace CardboardBox.UI.Pages
                 Theme.Row(Theme.Stack(FieldLabel("Port"), _port), Theme.Stack(FieldLabel("View distance (chunks)"), _viewDistance)),
                 _whitelist, _flight);
             Place(run);
+
+            // ---------- playit.gg
+            var share = new Card("Friends outside your home (playit.gg)");
+            _playitStatus = new Label { AutoSize = true, MaximumSize = new Size(900, 0), UseMnemonic = false, Margin = new Padding(0, 0, 0, 6) };
+            _playitOn = new CheckBox { Text = "Run the playit.gg tunnel whenever the server is running", AutoSize = true };
+            _playitOn.CheckedChanged += (s, e) => { if (!_refreshingPlayit) C.SetPlayitEnabled(_playitOn.Checked); };
+            _playitSetup = Theme.Primary("Set up playit.gg...");
+            _playitSetup.Click += (s, e) => { using (var dlg = new PlayitDialog(C)) dlg.ShowDialog(this); RefreshView(); };
+            _playitForget = Theme.Secondary("Disconnect");
+            _playitForget.Click += (s, e) =>
+            {
+                if (Confirm("Disconnect CardboardBox from playit.gg on this PC?\n\nFriends won't be able to use the playit.gg address until you set it up again.")) C.ForgetPlayit();
+                RefreshView();
+            };
+            share.Add(
+                Hint("playit.gg is a free service that gives your server an address friends can join from anywhere, with no router setup. " +
+                     "You'll need a free playit.gg account (one click to approve CardboardBox)."),
+                _playitStatus, _playitOn,
+                Theme.Row(_playitSetup, _playitForget, Theme.Link("Open my playit.gg dashboard", () => Theme.OpenUrl(Playit.DashboardUrl))));
+            Place(share, 2);
 
             // ---------- automatic behaviour
             var auto = new Card("CardboardBox behaviour");
@@ -237,6 +261,21 @@ namespace CardboardBox.UI.Pages
 
         public override void RefreshView()
         {
+            _refreshingPlayit = true;
+            try
+            {
+                bool linked = C.Settings.HasPlayit;
+                _playitOn.Enabled = linked;
+                _playitOn.Checked = C.UsingPlayit;
+                _playitForget.Visible = linked;
+                _playitSetup.Text = linked ? "Set up again..." : "Set up playit.gg...";
+                _playitStatus.Text = !linked ? "Not set up yet."
+                    : "\u2714 Linked to playit.gg." + (string.IsNullOrEmpty(C.Settings.PlayitAddress) ? " The address appears once the server runs."
+                        : " Friends can join at: " + C.Settings.PlayitAddress) + (C.Settings.PlayitEnabled ? "" : " (tunnel switched off)");
+                _playitStatus.ForeColor = linked ? Theme.Green : Theme.Muted;
+            }
+            finally { _refreshingPlayit = false; }
+
             _push.Enabled = C.Settings.HasToken;
             int n = C.Settings.PropertyOverrides.Count + (File.Exists(AppPaths.OverrideIcon) ? 1 : 0);
             _overridesNote.Text = (n == 0 ? "All settings match GitHub." : n + " setting(s) on this PC differ from GitHub.") +

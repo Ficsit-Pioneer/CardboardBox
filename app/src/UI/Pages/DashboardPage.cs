@@ -16,6 +16,7 @@ namespace CardboardBox.UI.Pages
         private readonly Label _bannerText;
         private readonly StatTile _players, _cpu, _ram, _uptime, _version, _lan, _wan, _github;
         private readonly Card _announceCard;
+        private readonly LinkLabel _playitLink, _portForwardLink;
         private readonly List<string> _recent = new List<string>();
 
         public DashboardPage(MainForm main, AppController c)
@@ -59,9 +60,14 @@ namespace CardboardBox.UI.Pages
             foreach (var t in new[] { _lan, _wan, _github, _version }) t.Value.Font = Theme.H2;
 
             _lan.Controls.Add(TileLink("Copy address", () => CopyText(LanAddress)));
-            var wanLinks = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 24, BackColor = Color.Transparent };
-            wanLinks.Controls.Add(Theme.Link("Copy", () => CopyText(WanAddress)));
-            wanLinks.Controls.Add(Theme.Link("Auto port-forward", PortForward));
+            var wanLinks = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 44, BackColor = Color.Transparent, WrapContents = true };
+            _playitLink = Theme.Link("Use playit.gg (easiest)", PlayitAction);
+            _portForwardLink = Theme.Link("Auto port-forward", PortForward);
+            foreach (var l in new Control[] { Theme.Link("Copy", () => CopyText(WanAddress)), _portForwardLink, _playitLink })
+            {
+                l.Margin = new Padding(0, 2, 10, 2);
+                wanLinks.Controls.Add(l);
+            }
             _wan.Controls.Add(wanLinks);
             _github.Controls.Add(TileLink("Check now", () => Run(() => C.CheckForUpdatesAsync(true))));
             _version.Controls.Add(TileLink("Open server folder", () => Theme.OpenFolder(AppPaths.Server)));
@@ -86,7 +92,7 @@ namespace CardboardBox.UI.Pages
 
         private StatTile Tile(string title, bool chart = false)
         {
-            var t = new StatTile(title, chart) { Height = chart ? 150 : 128, MinimumSize = new Size(0, chart ? 150 : 128) };
+            var t = new StatTile(title, chart) { Height = chart ? 150 : 146, MinimumSize = new Size(0, chart ? 150 : 146) };
             Place(t);
             return t;
         }
@@ -111,7 +117,15 @@ namespace CardboardBox.UI.Pages
         }
 
         private string LanAddress => C.LocalIp + (C.Port == 25565 ? "" : ":" + C.Port);
-        private string WanAddress => C.PublicIp == null ? null : C.PublicIp + (C.Port == 25565 ? "" : ":" + C.Port);
+        private string WanAddress => C.InternetAddress;
+
+        /// <summary>"Use playit.gg" opens the setup; once set up, the link goes to its settings.</summary>
+        private void PlayitAction()
+        {
+            if (C.Settings.HasPlayit) { Main.ShowPage(Main.PageOf<SettingsPage>()); return; }
+            using (var dlg = new PlayitDialog(C)) dlg.ShowDialog(this);
+            RefreshView();
+        }
 
         private void CopyText(string text)
         {
@@ -188,8 +202,16 @@ namespace CardboardBox.UI.Pages
 
             _lan.Value.Text = LanAddress;
             _lan.Detail.Text = "For players on the same Wi-Fi / network.";
-            _wan.Value.Text = WanAddress ?? "Looking up...";
-            _wan.Detail.Text = "For friends elsewhere. Needs port " + C.Port + " forwarded on the router.";
+            bool playit = C.UsingPlayit;
+            _wan.Title.Text = playit ? "INTERNET ADDRESS (PLAYIT.GG)" : "INTERNET ADDRESS";
+            _wan.Value.Text = WanAddress ?? (playit ? "Getting address..." : "Looking up...");
+            _wan.Value.Font = _wan.Value.Text.Length > 22 ? Theme.Bold : Theme.H2;
+            _wan.Detail.Text = playit
+                ? (!C.Server.IsAlive ? "Works while the server is running. No router setup needed."
+                   : C.Playit.IsRunning ? "Works from anywhere - share it with friends." : "Starting the playit.gg tunnel...")
+                : "Needs port forwarding on the router, or use playit.gg.";
+            _playitLink.Text = C.Settings.HasPlayit ? "playit.gg settings" : "Use playit.gg (easiest)";
+            _portForwardLink.Visible = !playit;
 
             UpdateActivity();
             Tick();

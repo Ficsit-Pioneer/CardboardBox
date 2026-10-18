@@ -37,7 +37,14 @@ namespace CardboardBox.Core
         /// <summary>Plugin jar file names turned off in the app.</summary>
         public List<string> DisabledPlugins = new List<string>();
 
+        /// <summary>Run a playit.gg tunnel while the server is running.</summary>
+        public bool PlayitEnabled;
+        /// <summary>The playit.gg address friends use (cached for display).</summary>
+        public string PlayitAddress;
+        public string PlayitAddressWithPort;
+
         private string _tokenProtected;
+        private string _playitProtected;
 
         public string RepoSlug => RepoOwner + "/" + RepoName;
         public string RepoUrl => "https://github.com/" + RepoSlug;
@@ -65,6 +72,29 @@ namespace CardboardBox.Core
 
         public bool HasToken => !string.IsNullOrEmpty(GitHubToken);
 
+        /// <summary>playit.gg agent secret key, encrypted with Windows DPAPI for this user.</summary>
+        public string PlayitSecret
+        {
+            get { return Unprotect(_playitProtected); }
+            set { _playitProtected = Protect(value); }
+        }
+
+        public bool HasPlayit => !string.IsNullOrEmpty(PlayitSecret);
+
+        private static string Protect(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+            var bytes = ProtectedData.Protect(Encoding.UTF8.GetBytes(value.Trim()), null, DataProtectionScope.CurrentUser);
+            return Convert.ToBase64String(bytes);
+        }
+
+        private static string Unprotect(string stored)
+        {
+            if (string.IsNullOrEmpty(stored)) return null;
+            try { return Encoding.UTF8.GetString(ProtectedData.Unprotect(Convert.FromBase64String(stored), null, DataProtectionScope.CurrentUser)); }
+            catch { return null; }
+        }
+
         public static Settings Load()
         {
             var s = new Settings();
@@ -88,6 +118,10 @@ namespace CardboardBox.Core
                 s.DisabledPlugins = new List<string>();
                 foreach (var p in d.Arr("disabledPlugins")) if (p != null) s.DisabledPlugins.Add(p.ToString());
                 s._tokenProtected = d.Str("githubTokenEncrypted");
+                s.PlayitEnabled = d.Bool("playitEnabled");
+                s.PlayitAddress = d.Str("playitAddress");
+                s.PlayitAddressWithPort = d.Str("playitAddressWithPort");
+                s._playitProtected = d.Str("playitSecretEncrypted");
             }
             catch (Exception ex)
             {
@@ -115,6 +149,10 @@ namespace CardboardBox.Core
                 ["propertyOverrides"] = PropertyOverrides,
                 ["disabledPlugins"] = DisabledPlugins,
                 ["githubTokenEncrypted"] = _tokenProtected,
+                ["playitEnabled"] = PlayitEnabled,
+                ["playitAddress"] = PlayitAddress,
+                ["playitAddressWithPort"] = PlayitAddressWithPort,
+                ["playitSecretEncrypted"] = _playitProtected,
             };
             try { Json.WriteFile(AppPaths.Settings, d); }
             catch (Exception ex) { Log.Error("Couldn't save settings", ex); }

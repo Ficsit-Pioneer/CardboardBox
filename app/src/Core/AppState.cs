@@ -26,6 +26,10 @@ namespace CardboardBox.Core
         public int JavaMinimum;
         public List<string> JavaFlags = new List<string>();
 
+        // playit.gg agent
+        public string PlayitVersion;
+        public DateTime PlayitCheckedUtc;
+
         /// <summary>plugin key from the manifest -> jar file name we downloaded for it.</summary>
         public Dictionary<string, string> ManagedPlugins = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -51,6 +55,9 @@ namespace CardboardBox.Core
                 s.JavaFlags = new List<string>();
                 foreach (var f in d.Arr("javaFlags")) if (f != null) s.JavaFlags.Add(f.ToString());
                 s.ManagedPlugins = d.StrMap("managedPlugins");
+                s.PlayitVersion = d.Str("playitVersion");
+                if (DateTime.TryParse(d.Str("playitCheckedUtc"), null, System.Globalization.DateTimeStyles.RoundtripKind, out var pc))
+                    s.PlayitCheckedUtc = pc.ToUniversalTime();
             }
             catch (Exception ex)
             {
@@ -76,6 +83,8 @@ namespace CardboardBox.Core
                 ["javaMinimum"] = JavaMinimum,
                 ["javaFlags"] = JavaFlags,
                 ["managedPlugins"] = ManagedPlugins,
+                ["playitVersion"] = PlayitVersion,
+                ["playitCheckedUtc"] = PlayitCheckedUtc == default(DateTime) ? null : (object)PlayitCheckedUtc,
             };
             try { Json.WriteFile(AppPaths.State, d); }
             catch (Exception ex) { Log.Error("Couldn't save state", ex); }
