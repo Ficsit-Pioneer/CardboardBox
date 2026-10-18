@@ -197,7 +197,7 @@ namespace CardboardBox.UI
             for (int i = 0; i < text.Length; i++)
             {
                 char c = text[i];
-                if ((c == '§' || c == '&') && i + 1 < text.Length)
+                if ((c == '\u00a7' || c == '&') && i + 1 < text.Length)
                 {
                     char code = char.ToLowerInvariant(text[i + 1]);
                     if (Colors.ContainsKey(code)) { flush(); color = Colors[code]; bold = false; i++; continue; }

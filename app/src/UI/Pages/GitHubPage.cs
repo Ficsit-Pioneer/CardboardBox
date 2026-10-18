@@ -131,11 +131,11 @@ namespace CardboardBox.UI.Pages
             _result.ForeColor = st.LastCheckResult != null && st.LastCheckResult.StartsWith("Failed") ? Theme.Red : Theme.Muted;
             Tick();
 
-            _tokenState.Text = C.Settings.HasToken ? "✔ A token is saved - uploads are enabled." : "No token saved - this PC only downloads.";
+            _tokenState.Text = C.Settings.HasToken ? "\u2714 A token is saved - uploads are enabled." : "No token saved - this PC only downloads.";
             _tokenState.ForeColor = C.Settings.HasToken ? Theme.Green : Theme.Muted;
 
             _appVersion.Text = "You have version " + AppPaths.AppVersionText +
-                               (C.AppUpdate != null ? " — version " + C.AppUpdate.Tag.TrimStart('v') + " is available!" : ".");
+                               (C.AppUpdate != null ? " \u2014 version " + C.AppUpdate.Tag.TrimStart('v') + " is available!" : ".");
             _installUpdate.Enabled = C.AppUpdate != null;
         }
 

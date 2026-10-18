@@ -62,9 +62,9 @@ namespace CardboardBox.UI.Pages
 
             var help = new Card("Where plugins come from");
             help.Add(
-                Hint("• GitHub repo: .jar files in the repo's server/plugins folder. Every copy of CardboardBox gets them automatically."),
-                Hint("• cardboardbox.json: plugins listed by name (from Modrinth) or by download link. CardboardBox downloads the version that matches your Minecraft version."),
-                Hint("• Added on this PC: plugins you added with the button above. Only this PC has them, unless you upload them to GitHub."),
+                Hint("\u2022 GitHub repo: .jar files in the repo's server/plugins folder. Every copy of CardboardBox gets them automatically."),
+                Hint("\u2022 cardboardbox.json: plugins listed by name (from Modrinth) or by download link. CardboardBox downloads the version that matches your Minecraft version."),
+                Hint("\u2022 Added on this PC: plugins you added with the button above. Only this PC has them, unless you upload them to GitHub."),
                 Hint("Turning a plugin off keeps it switched off even when GitHub sends updates."));
             Place(help);
 

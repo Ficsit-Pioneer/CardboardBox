@@ -49,7 +49,7 @@ namespace CardboardBox.UI.Pages
                 Hint("Shown in the multiplayer server list. Two lines max. Colors: &a green, &c red, &e yellow, &b aqua, &6 gold, &l bold, &r reset."),
                 _motd, _preview,
                 FieldLabel("Server icon"),
-                Hint("Any picture works - CardboardBox shrinks it to 64×64 for you."),
+                Hint("Any picture works - CardboardBox shrinks it to 64\u00d764 for you."),
                 Theme.Row(_icon, Theme.Stack(chooseIcon, resetIcon)),
                 FieldLabel("Max players"), _maxPlayers);
             Place(look);
@@ -106,7 +106,7 @@ namespace CardboardBox.UI.Pages
             try
             {
                 string P(string key, string def) => ServerProperties.Effective(C.Settings, key, def);
-                _motd.Text = (P("motd", "A Minecraft Server") ?? "").Replace('§', '&').Replace("\r", "").Replace("\n", "\r\n");
+                _motd.Text = (P("motd", "A Minecraft Server") ?? "").Replace('\u00a7', '&').Replace("\r", "").Replace("\n", "\r\n");
                 _maxPlayers.Value = Clamp(_maxPlayers, P("max-players", "20"));
                 _port.Value = Clamp(_port, P("server-port", "25565"));
                 _viewDistance.Value = Clamp(_viewDistance, P("view-distance", "10"));
@@ -141,8 +141,8 @@ namespace CardboardBox.UI.Pages
         {
             int mb = _ram.Value * 512;
             int recommended = Math.Min(C.Manifest.DefaultRamGB * 1024, AppController.MaxSafeRamMB);
-            _ramLabel.Text = (mb / 1024.0).ToString("0.0") + " GB  ·  this PC has " + (AppController.SystemRamMB / 1024.0).ToString("0") +
-                             " GB  ·  recommended " + (recommended / 1024.0).ToString("0.#") + " GB";
+            _ramLabel.Text = (mb / 1024.0).ToString("0.0") + " GB  \u00b7  this PC has " + (AppController.SystemRamMB / 1024.0).ToString("0") +
+                             " GB  \u00b7  recommended " + (recommended / 1024.0).ToString("0.#") + " GB";
             _ramLabel.ForeColor = mb > AppController.SystemRamMB * 0.75 ? Theme.Red : Theme.Muted;
         }
 
@@ -203,7 +203,7 @@ namespace CardboardBox.UI.Pages
 
         private void Save()
         {
-            var motd = Regex.Replace(_motd.Text.Replace("\r\n", "\n").TrimEnd('\n'), "&([0-9a-fk-orA-FK-OR])", "§$1");
+            var motd = Regex.Replace(_motd.Text.Replace("\r\n", "\n").TrimEnd('\n'), "&([0-9a-fk-orA-FK-OR])", "\u00a7$1");
             var changes = new Dictionary<string, string>
             {
                 ["motd"] = motd,

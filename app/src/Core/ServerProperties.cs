@@ -8,7 +8,7 @@ namespace CardboardBox.Core
 {
     /// <summary>
     /// Reads / writes Minecraft's server.properties while keeping comments and key order.
-    /// Values are stored with Java-style escaping (\uXXXX for non-ASCII such as the § color sign).
+    /// Values are stored with Java-style escaping (\uXXXX for non-ASCII such as the \u00a7 color sign).
     /// </summary>
     public class ServerProperties
     {

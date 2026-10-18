@@ -23,11 +23,11 @@ namespace CardboardBox.UI.Pages
         {
             // ---------- status card
             var statusCard = new Card(null);
-            _status = new Label { Text = "●  Stopped", Font = new Font("Segoe UI Semibold", 20f), AutoSize = true, ForeColor = Theme.Gray };
+            _status = new Label { Text = "\u25cf  Stopped", Font = new Font("Segoe UI Semibold", 20f), AutoSize = true, ForeColor = Theme.Gray };
             _statusDetail = new Label { Text = "", AutoSize = true, MaximumSize = new Size(900, 0), ForeColor = Theme.Muted, Margin = new Padding(2, 0, 0, 10) };
-            _start = Theme.Good("▶  Start server");
-            _stop = Theme.Secondary("■  Stop");
-            _restart = Theme.Secondary("↻  Restart");
+            _start = Theme.Good("\u25b6  Start server");
+            _stop = Theme.Secondary("\u25a0  Stop");
+            _restart = Theme.Secondary("\u21bb  Restart");
             _kill = Theme.Danger("Force stop");
             _start.Click += (s, e) => Run(Main.StartServerAsync, _start);
             _stop.Click += (s, e) => Run(C.StopAsync, _stop);
@@ -100,7 +100,7 @@ namespace CardboardBox.UI.Pages
 
         private void Push(LogLevel level, string msg)
         {
-            var prefix = level == LogLevel.Error ? "✖ " : level == LogLevel.Warn ? "⚠ " : level == LogLevel.Success ? "✔ " : "• ";
+            var prefix = level == LogLevel.Error ? "\u2716 " : level == LogLevel.Warn ? "\u26a0 " : level == LogLevel.Success ? "\u2714 " : "\u2022 ";
             _recent.Add(DateTime.Now.ToString("HH:mm") + "  " + prefix + msg);
             while (_recent.Count > 7) _recent.RemoveAt(0);
         }
@@ -143,7 +143,7 @@ namespace CardboardBox.UI.Pages
         public override void RefreshView()
         {
             var s = C.Server.Status;
-            _status.Text = "●  " + MainForm.StatusText(s);
+            _status.Text = "\u25cf  " + MainForm.StatusText(s);
             _status.ForeColor = MainForm.StatusColor(s);
 
             bool alive = C.Server.IsAlive;
@@ -179,11 +179,11 @@ namespace CardboardBox.UI.Pages
             _announcement.Text = string.IsNullOrWhiteSpace(m.Announcement) ? "No message right now." : m.Announcement;
 
             var sha = C.State.AppliedSha;
-            _github.Value.Text = string.IsNullOrEmpty(sha) ? "Not synced yet" : "✔ " + sha.Substring(0, Math.Min(7, sha.Length));
+            _github.Value.Text = string.IsNullOrEmpty(sha) ? "Not synced yet" : "\u2714 " + sha.Substring(0, Math.Min(7, sha.Length));
 
             _version.Value.Text = C.State.PaperVersion != null ? "Minecraft " + C.State.PaperVersion : "Not installed yet";
             _version.Detail.Text = C.State.PaperBuild > 0
-                ? "Paper build #" + C.State.PaperBuild + " · Java " + (C.State.JavaMinimum > 0 ? Installer.PickJavaFeature(C.State.JavaMinimum).ToString() : "?")
+                ? "Paper build #" + C.State.PaperBuild + " \u00b7 Java " + (C.State.JavaMinimum > 0 ? Installer.PickJavaFeature(C.State.JavaMinimum).ToString() : "?")
                 : "Installs automatically.";
 
             _lan.Value.Text = LanAddress;
@@ -205,14 +205,14 @@ namespace CardboardBox.UI.Pages
             _players.Detail.Text = !alive ? "Server is stopped." : players.Count == 0 ? "Nobody online yet." : string.Join(", ", players.Take(8)) + (players.Count > 8 ? "..." : "");
 
             _cpu.Value.Text = alive ? st.ServerCpu.ToString("0") + "%" : "-";
-            _cpu.Detail.Text = "Whole PC: " + st.SystemCpu.ToString("0") + "% · " + Environment.ProcessorCount + " CPU threads";
+            _cpu.Detail.Text = "Whole PC: " + st.SystemCpu.ToString("0") + "% \u00b7 " + Environment.ProcessorCount + " CPU threads";
             _cpu.Chart.Values = st.ServerCpuHistory;
             _cpu.Chart.SecondValues = st.SystemCpuHistory;
             _cpu.Chart.Invalidate();
 
             double gb = 1024.0 * 1024 * 1024;
             _ram.Value.Text = alive ? (st.ServerRamBytes / gb).ToString("0.0") + " GB" : "-";
-            _ram.Detail.Text = (C.RamMB / 1024.0).ToString("0.#") + " GB given to the server · PC: " +
+            _ram.Detail.Text = (C.RamMB / 1024.0).ToString("0.#") + " GB given to the server \u00b7 PC: " +
                                (st.SystemRamUsedBytes / gb).ToString("0.0") + " / " + (st.SystemRamTotalBytes / gb).ToString("0") + " GB used";
             _ram.Chart.Values = st.ServerRamHistory;
             _ram.Chart.Max = C.RamMB * 1.25;
@@ -221,7 +221,7 @@ namespace CardboardBox.UI.Pages
             _uptime.Value.Text = alive ? Theme.Duration(DateTime.Now - C.Server.StartedAt) : "-";
             _uptime.Detail.Text = alive ? "Started at " + C.Server.StartedAt.ToString("HH:mm") : "Server is stopped.";
 
-            var next = C.NextCheck == DateTime.MaxValue ? "" : " · next check in " + Math.Max(0, (int)Math.Ceiling((C.NextCheck - DateTime.Now).TotalMinutes)) + " min";
+            var next = C.NextCheck == DateTime.MaxValue ? "" : " \u00b7 next check in " + Math.Max(0, (int)Math.Ceiling((C.NextCheck - DateTime.Now).TotalMinutes)) + " min";
             _github.Detail.Text = "Checked " + Theme.Ago(C.State.LastCheckUtc) + next +
                                   (C.State.LastCheckResult != null && C.State.LastCheckResult.StartsWith("Failed") ? "\n(last check failed)" : "");
         }

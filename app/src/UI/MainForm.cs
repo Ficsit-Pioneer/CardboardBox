@@ -71,7 +71,7 @@ namespace CardboardBox.UI
 
             // ---------- status bar
             var statusBar = new Panel { Dock = DockStyle.Bottom, Height = 30, BackColor = Color.FromArgb(0xEA, 0xE2, 0xD5), Padding = new Padding(12, 0, 12, 0) };
-            _statusDot = new Label { Text = "●", ForeColor = Theme.Gray, AutoSize = true, Font = new Font("Segoe UI", 11f), Location = new Point(10, 4) };
+            _statusDot = new Label { Text = "\u25cf", ForeColor = Theme.Gray, AutoSize = true, Font = new Font("Segoe UI", 11f), Location = new Point(10, 4) };
             _statusText = new Label { Text = "Getting ready...", AutoSize = true, ForeColor = Theme.Text, Location = new Point(30, 7) };
             _progress = new ProgressBar { Width = 220, Height = 14, Anchor = AnchorStyles.Right | AnchorStyles.Top, Visible = false, Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 30 };
             statusBar.Controls.Add(_statusDot);
@@ -97,7 +97,7 @@ namespace CardboardBox.UI
                 new BackupsPage(this, Controller),
                 new GitHubPage(this, Controller),
             };
-            string[] icons = { "⌂", "❯", "⚙", "✦", "☺", "▣", "⇅" };
+            string[] icons = { "\u2302", "\u276f", "\u2699", "\u2726", "\u263a", "\u25a3", "\u21c5" };
             for (int i = 0; i < pages.Length; i++)
             {
                 var page = pages[i];
