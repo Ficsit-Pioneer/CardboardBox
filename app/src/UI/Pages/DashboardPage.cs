@@ -15,7 +15,8 @@ namespace CardboardBox.UI.Pages
         private readonly Panel _banner;
         private readonly Label _bannerText;
         private readonly StatTile _players, _cpu, _ram, _uptime, _version, _lan, _wan, _github;
-        private readonly Card _announceCard;
+        private readonly Card _announceCard, _bedrockCard;
+        private readonly Label _bedrockText;
         private readonly LinkLabel _playitLink, _portForwardLink;
         private readonly List<string> _recent = new List<string>();
 
@@ -53,7 +54,7 @@ namespace CardboardBox.UI.Pages
             _cpu = Tile("CPU", true);
             _ram = Tile("RAM", true);
             _uptime = Tile("Uptime");
-            _version = Tile("Minecraft version");
+            _version = Tile("Server");
             _lan = Tile("Home network address");
             _wan = Tile("Internet address");
             _github = Tile("GitHub sync");
@@ -71,6 +72,16 @@ namespace CardboardBox.UI.Pages
             _wan.Controls.Add(wanLinks);
             _github.Controls.Add(TileLink("Check now", () => Run(() => C.CheckForUpdatesAsync(true))));
             _version.Controls.Add(TileLink("Open server folder", () => Theme.OpenFolder(AppPaths.Server)));
+
+            // ---------- Bedrock (crossplay)
+            _bedrockCard = new Card("Bedrock players (crossplay)");
+            _bedrockText = new Label { UseMnemonic = false, AutoSize = true, MaximumSize = new Size(900, 0), ForeColor = Theme.Text };
+            _bedrockCard.Add(
+                Hint("Phones, tablets, consoles and Windows Bedrock: Play > Servers > Add Server, then type the address and port."),
+                _bedrockText,
+                Theme.Row(Theme.Link("Copy home address", () => CopyText(C.LocalIp)),
+                          Theme.Link("Copy internet address", () => CopyText(C.Settings.BedrockInternetAddress ?? C.PublicIp))));
+            Place(_bedrockCard, 4);
 
             // ---------- announcement + activity
             _announceCard = new Card("Message from the server owner");
@@ -195,10 +206,21 @@ namespace CardboardBox.UI.Pages
             var sha = C.State.AppliedSha;
             _github.Value.Text = string.IsNullOrEmpty(sha) ? "Not synced yet" : "\u2714 " + sha.Substring(0, Math.Min(7, sha.Length));
 
-            _version.Value.Text = C.State.PaperVersion != null ? "Minecraft " + C.State.PaperVersion : "Not installed yet";
-            _version.Detail.Text = C.State.PaperBuild > 0
-                ? "Paper build #" + C.State.PaperBuild + " \u00b7 Java " + (C.State.JavaMinimum > 0 ? Installer.PickJavaFeature(C.State.JavaMinimum).ToString() : "?")
-                : "Installs automatically.";
+            var installed = C.InstalledSoftware;
+            _version.Value.Text = installed != null && C.State.InstalledMcVersion != null ? installed.Name + " " + C.State.InstalledMcVersion : "Not installed yet";
+            _version.Detail.Text = installed == null ? "Installs automatically."
+                : C.DescribeInstalled().Replace(installed.Name + " " + C.State.InstalledMcVersion, "").Trim(' ', '(', ')') +
+                  (C.State.JavaMinimum > 0 ? " - Java " + Installer.PickJavaFeature(C.State.JavaMinimum) : "") +
+                  (C.CrossplayActive ? " - crossplay on" : "");
+
+            _bedrockCard.Visible = C.CrossplayActive;
+            if (C.CrossplayActive)
+            {
+                var internet = C.Settings.BedrockInternetAddress != null
+                    ? C.Settings.BedrockInternetAddress + "   port 443   (Bedrock 26.40 or newer, through GeyserMC's free signaling service)"
+                    : "shown here once the server has started with crossplay";
+                _bedrockText.Text = "Same Wi-Fi:   " + C.LocalIp + "   port " + GeyserConfig.BedrockPort + "\nFrom anywhere:   " + internet;
+            }
 
             _lan.Value.Text = LanAddress;
             _lan.Detail.Text = "For players on the same Wi-Fi / network.";

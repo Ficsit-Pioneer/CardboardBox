@@ -96,7 +96,7 @@ namespace CardboardBox.Core
         /// </summary>
         public static async Task DownloadFileAsync(string url, string destination, string what,
             ProgressHandler progress = null, string sha256 = null, string sha512 = null, string sha1 = null,
-            CancellationToken token = default(CancellationToken))
+            CancellationToken token = default(CancellationToken), string md5 = null)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(destination));
             var part = destination + ".part";
@@ -138,7 +138,7 @@ namespace CardboardBox.Core
                         }
                     }
 
-                    VerifyChecksum(part, what, sha256, sha512, sha1);
+                    VerifyChecksum(part, what, sha256, sha512, sha1, md5);
                     if (File.Exists(destination)) File.Delete(destination);
                     File.Move(part, destination);
                     return;
@@ -162,12 +162,13 @@ namespace CardboardBox.Core
             throw new FriendlyException("Couldn't download " + what + ".", Errors.Friendly(last), last);
         }
 
-        private static void VerifyChecksum(string file, string what, string sha256, string sha512, string sha1)
+        private static void VerifyChecksum(string file, string what, string sha256, string sha512, string sha1, string md5)
         {
             string expected = null, actual = null;
             if (!string.IsNullOrEmpty(sha256)) { expected = sha256; actual = Hash.FileSha256(file); }
             else if (!string.IsNullOrEmpty(sha512)) { expected = sha512; actual = Hash.OfFile(file, SHA512.Create()); }
             else if (!string.IsNullOrEmpty(sha1)) { expected = sha1; actual = Hash.OfFile(file, SHA1.Create()); }
+            else if (!string.IsNullOrEmpty(md5)) { expected = md5; actual = Hash.OfFile(file, MD5.Create()); }
             if (expected == null) return;
             if (!string.Equals(expected.Trim(), actual, StringComparison.OrdinalIgnoreCase))
             {

@@ -21,6 +21,8 @@ namespace CardboardBox.Core
         /// Minecraft handshake, so players should use <see cref="Address"/> (the game resolves the SRV record).
         /// </summary>
         public string AddressWithPort;
+        public string Host;
+        public int Port;
         public bool Disabled;
     }
 
@@ -161,16 +163,17 @@ namespace CardboardBox.Core
         // ------------------------------------------------------------------ tunnel
 
         /// <summary>
-        /// Makes sure this agent has a Minecraft Java tunnel to 127.0.0.1:port (creating or fixing it if needed)
-        /// and returns its public address. Returns null if playit is still allocating it.
+        /// Makes sure this agent has a Minecraft Java (TCP) or Bedrock (UDP) tunnel to 127.0.0.1:port,
+        /// creating or fixing it if needed, and returns its public address. Returns null if playit is still allocating it.
         /// </summary>
-        public static async Task<PlayitTunnel> EnsureTunnelAsync(string secret, int port)
+        public static async Task<PlayitTunnel> EnsureTunnelAsync(string secret, int port, bool bedrock = false)
         {
+            var type = bedrock ? "minecraft-bedrock" : "minecraft-java";
             var run = await RunDataAsync(secret).ConfigureAwait(false);
             var agentId = run.Str("agent_id");
-            WarnAboutAccount(run.Str("account_status"));
+            if (!bedrock) WarnAboutAccount(run.Str("account_status"));
 
-            var tunnel = FindTunnel(run, port);
+            var tunnel = FindTunnel(run, port, type);
             if (tunnel != null)
             {
                 if (tunnel.Int("local_port") != port || tunnel.Str("local_ip") != "127.0.0.1")
@@ -183,19 +186,19 @@ namespace CardboardBox.Core
                         ["agent_id"] = agentId,
                         ["enabled"] = true,
                     }, secret), port).ConfigureAwait(false);
-                    Log.Info("Pointed the playit.gg tunnel at port " + port + ".");
+                    Log.Info("Pointed the playit.gg " + (bedrock ? "Bedrock " : "") + "tunnel at port " + port + ".");
                 }
                 return Describe(tunnel);
             }
 
-            bool pending = run.Arr("pending").OfType<Dictionary<string, object>>().Any(t => t.Str("tunnel_type") == "minecraft-java");
+            bool pending = run.Arr("pending").OfType<Dictionary<string, object>>().Any(t => t.Str("tunnel_type") == type);
             if (!pending)
             {
                 await WhileAgentConnects(() => CallAsync("/tunnels/create", new Dictionary<string, object>
                     {
-                        ["name"] = "CardboardBox Minecraft",
-                        ["tunnel_type"] = "minecraft-java",
-                        ["port_type"] = "tcp",
+                        ["name"] = bedrock ? "CardboardBox Bedrock" : "CardboardBox Minecraft",
+                        ["tunnel_type"] = type,
+                        ["port_type"] = bedrock ? "udp" : "tcp",
                         ["port_count"] = 1,
                         ["origin"] = new Dictionary<string, object>
                         {
@@ -207,14 +210,14 @@ namespace CardboardBox.Core
                         ["firewall_id"] = null,
                         ["proxy_protocol"] = null,
                     }, secret), port).ConfigureAwait(false);
-                Log.Info("Created a playit.gg tunnel for Minecraft.");
+                Log.Info("Created a playit.gg tunnel for Minecraft " + (bedrock ? "Bedrock." : "Java."));
             }
 
             // New tunnels take a few seconds to get an address.
             for (int i = 0; i < 20; i++)
             {
                 await Task.Delay(2000).ConfigureAwait(false);
-                tunnel = FindTunnel(await RunDataAsync(secret).ConfigureAwait(false), port);
+                tunnel = FindTunnel(await RunDataAsync(secret).ConfigureAwait(false), port, type);
                 if (tunnel != null) return Describe(tunnel);
             }
             return null;
@@ -262,11 +265,12 @@ namespace CardboardBox.Core
             return run;
         }
 
-        private static Dictionary<string, object> FindTunnel(Dictionary<string, object> run, int port)
+        private static Dictionary<string, object> FindTunnel(Dictionary<string, object> run, int port, string type)
         {
             var tunnels = run.Arr("tunnels").OfType<Dictionary<string, object>>().ToList();
-            return tunnels.FirstOrDefault(t => t.Str("tunnel_type") == "minecraft-java")
-                   ?? tunnels.FirstOrDefault(t => t.Int("local_port") == port && t.Str("proto") != "udp");
+            bool udp = type == "minecraft-bedrock";
+            return tunnels.FirstOrDefault(t => t.Str("tunnel_type") == type)
+                   ?? tunnels.FirstOrDefault(t => t.Int("local_port") == port && (udp ? t.Str("proto") != "tcp" : t.Str("proto") != "udp"));
         }
 
         private static PlayitTunnel Describe(Dictionary<string, object> t)
@@ -277,8 +281,11 @@ namespace CardboardBox.Core
             return new PlayitTunnel
             {
                 // Minecraft Java tunnels have an SRV record, so the bare name works in the game.
+                // Bedrock has separate "address" and "port" boxes, so it always needs the port.
                 Address = javaType ? domain : domain + ":" + port,
                 AddressWithPort = domain + ":" + port,
+                Host = domain,
+                Port = port,
                 Disabled = t.ContainsKey("disabled") && t["disabled"] != null,
             };
         }

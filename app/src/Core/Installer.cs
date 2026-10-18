@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -10,118 +9,27 @@ using System.Threading.Tasks;
 
 namespace CardboardBox.Core
 {
-    public class PaperRelease
+    /// <summary>A plugin / mod file we resolved and can download.</summary>
+    public class AddonFile
     {
-        public string Version;
-        public int Build;
+        public string Name;
         public string Url;
-        public string Sha256;
         public string FileName;
-        public bool Experimental;
-        public int JavaMinimum;
-        public List<string> JavaFlags = new List<string>();
+        public string Sha256, Sha512, Sha1;
+        /// <summary>Modrinth project ids this file needs (required dependencies).</summary>
+        public List<string> RequiredProjects = new List<string>();
     }
 
-    /// <summary>Downloads and installs everything the server needs: Java, Paper and plugins.</summary>
+    /// <summary>Downloads and installs Java and add-ons (plugins / mods, including Geyser for crossplay).</summary>
     public static class Installer
     {
-        private const string Fill = "https://fill.papermc.io/v3/projects/paper";
         private const string Adoptium = "https://api.adoptium.net/v3/assets/latest/";
         private const string Modrinth = "https://api.modrinth.com/v2/";
-
-        // ------------------------------------------------------------------ Paper
-
-        public static async Task<PaperRelease> ResolvePaperAsync(Manifest m)
-        {
-            var version = (m.MinecraftVersion ?? "").Trim();
-            if (version.Length == 0 || version.Equals("latest", StringComparison.OrdinalIgnoreCase))
-                version = await ResolveLatestVersionAsync().ConfigureAwait(false);
-
-            var vr = await Net.SendAsync(HttpMethod.Get, Fill + "/versions/" + Uri.EscapeDataString(version)).ConfigureAwait(false);
-            if (vr.Status == HttpStatusCode.NotFound)
-                throw new FriendlyException("Paper doesn't have Minecraft version \"" + version + "\".",
-                    "Ask the server owner to fix \"minecraftVersion\" in cardboardbox.json.");
-            if (!vr.Ok) throw new FriendlyException("PaperMC answered with error " + (int)vr.Status + ".");
-
-            var vinfo = Json.ParseObject(vr.Body).Obj("version");
-            var java = vinfo.Obj("java");
-            var rel = new PaperRelease
-            {
-                Version = version,
-                JavaMinimum = java.Obj("version").Int("minimum", 21),
-            };
-            foreach (var f in java.Obj("flags").Arr("recommended")) if (f != null) rel.JavaFlags.Add(f.ToString());
-
-            var builds = Json.ParseArray(await Net.GetStringAsync(Fill + "/versions/" + Uri.EscapeDataString(version) + "/builds").ConfigureAwait(false))
-                .OfType<Dictionary<string, object>>().ToList();
-            if (builds.Count == 0) throw new FriendlyException("Paper has no downloads for Minecraft " + version + " yet.");
-
-            Dictionary<string, object> pick;
-            if (m.PaperBuild > 0)
-            {
-                pick = builds.FirstOrDefault(b => b.Int("id") == m.PaperBuild);
-                if (pick == null) throw new FriendlyException("Paper build " + m.PaperBuild + " for " + version + " doesn't exist.");
-            }
-            else
-            {
-                pick = builds.FirstOrDefault(b => string.Equals(b.Str("channel"), "STABLE", StringComparison.OrdinalIgnoreCase));
-                if (pick == null) { pick = builds[0]; rel.Experimental = true; }
-            }
-
-            var dl = pick.Obj("downloads").Obj("server:default");
-            rel.Build = pick.Int("id");
-            rel.Url = dl.Str("url");
-            rel.FileName = dl.Str("name");
-            rel.Sha256 = dl.Obj("checksums").Str("sha256");
-            if (string.IsNullOrEmpty(rel.Url)) throw new FriendlyException("Paper's download information was incomplete.");
-            return rel;
-        }
-
-        private static async Task<string> ResolveLatestVersionAsync()
-        {
-            var d = Json.ParseObject(await Net.GetStringAsync(Fill).ConfigureAwait(false));
-            var all = new List<string>();
-            var groups = d.Obj("versions");
-            if (groups != null)
-                foreach (var g in groups.Values)
-                    all.AddRange(Json.AsList(g).Select(x => x?.ToString()).Where(x => x != null && !x.Contains("-")));
-
-            foreach (var v in all.OrderByDescending(VersionKey).Take(3))
-            {
-                var builds = Json.ParseArray(await Net.GetStringAsync(Fill + "/versions/" + v + "/builds").ConfigureAwait(false));
-                if (builds.OfType<Dictionary<string, object>>().Any(b => b.Str("channel") == "STABLE")) return v;
-            }
-            throw new FriendlyException("Couldn't work out the newest Minecraft version from PaperMC.");
-        }
-
-        private static Version VersionKey(string v)
-        {
-            var parts = v.Split('.').Select(p => int.TryParse(p, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : 0).ToList();
-            while (parts.Count < 3) parts.Add(0);
-            return new Version(parts[0], parts[1], parts[2]);
-        }
-
-        public static async Task EnsurePaperAsync(PaperRelease rel, AppState state, ProgressHandler progress)
-        {
-            if (File.Exists(AppPaths.ServerJar) && state.PaperSha256 == rel.Sha256 &&
-                string.Equals(Hash.FileSha256(AppPaths.ServerJar), rel.Sha256, StringComparison.OrdinalIgnoreCase))
-                return;
-
-            Log.Info("Downloading Paper " + rel.Version + " build " + rel.Build + (rel.Experimental ? " (experimental build)" : "") + "...");
-            var tmp = Path.Combine(AppPaths.Downloads, rel.FileName ?? "paper.jar");
-            await Net.DownloadFileAsync(rel.Url, tmp, "Paper " + rel.Version, progress, sha256: rel.Sha256).ConfigureAwait(false);
-            File.Copy(tmp, AppPaths.ServerJar, true);
-            File.Delete(tmp);
-
-            state.PaperVersion = rel.Version;
-            state.PaperBuild = rel.Build;
-            state.PaperSha256 = rel.Sha256;
-            Log.Success("Installed Paper " + rel.Version + " build " + rel.Build + ".");
-        }
+        private const string GeyserApi = "https://download.geysermc.org/v2/projects/";
 
         // ------------------------------------------------------------------ Java
 
-        /// <summary>Picks the Java LTS release that satisfies Paper's minimum.</summary>
+        /// <summary>Picks the Java LTS release that satisfies a minimum.</summary>
         public static int PickJavaFeature(int minimum)
         {
             foreach (var lts in new[] { 8, 11, 17, 21, 25, 29, 33 })
@@ -176,98 +84,153 @@ namespace CardboardBox.Core
             return exe;
         }
 
-        // ------------------------------------------------------------------ Plugins
+        // ------------------------------------------------------------------ add-ons (plugins / mods)
 
-        /// <summary>Downloads the plugins listed in cardboardbox.json and removes ones that were taken off the list.</summary>
-        public static async Task EnsurePluginsAsync(Manifest m, string mcVersion, AppState state, ProgressHandler progress)
+        /// <summary>
+        /// Makes the add-on folder match the list: downloads what's missing or updated (plus required
+        /// dependencies) and removes files CardboardBox installed earlier that are no longer wanted.
+        /// state.ManagedPlugins maps a key ("modrinth:slug", "geyser:geyser"...) to "folder/file.jar".
+        /// </summary>
+        public static async Task EnsureAddonsAsync(ServerSoftware sw, string mcVersion, List<PluginSpec> specs, AppState state, ProgressHandler progress)
         {
             var wanted = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var spec in m.Plugins)
+            var old = state.ManagedPlugins.ToDictionary(kv => kv.Key, kv => NormalizePath(kv.Value), StringComparer.OrdinalIgnoreCase);
+
+            if (sw.AddonFolder == null)
             {
-                var key = spec.Key;
-                state.ManagedPlugins.TryGetValue(key, out var oldFile);
-                try
+                if (specs.Count > 0) Log.Warn(sw.Name + " servers can't use plugins or mods, so the " + specs.Count + " listed in cardboardbox.json were skipped.");
+            }
+            else
+            {
+                var queue = new Queue<PluginSpec>(specs);
+                var seenProjects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                while (queue.Count > 0)
                 {
-                    string url, fileName, sha512 = null, sha1 = null, sha256 = spec.Sha256;
-                    if (!string.IsNullOrWhiteSpace(spec.Modrinth))
+                    var spec = queue.Dequeue();
+                    // Keyed per server type: a Fabric mod must never be kept for NeoForge just because
+                    // NeoForge has no version of it (they share the "mods" folder).
+                    var key = sw.Id + "|" + spec.Key;
+                    if (wanted.ContainsKey(key)) continue;
+                    old.TryGetValue(key, out var oldPath);
+                    try
                     {
-                        var v = await ResolveModrinthAsync(spec.Modrinth.Trim(), mcVersion).ConfigureAwait(false);
-                        url = v.Item1; fileName = v.Item2; sha512 = v.Item3; sha1 = v.Item4;
-                    }
-                    else
-                    {
-                        url = spec.Url.Trim();
-                        fileName = spec.File;
-                        if (string.IsNullOrWhiteSpace(fileName)) fileName = Uri.UnescapeDataString(new Uri(url).Segments.Last());
-                        if (!fileName.EndsWith(".jar", StringComparison.OrdinalIgnoreCase)) fileName += ".jar";
-                    }
-                    fileName = SafeFileName(fileName);
-                    var dest = Path.Combine(AppPaths.Plugins, fileName);
+                        var file = await ResolveAsync(spec, sw, mcVersion).ConfigureAwait(false);
+                        var rel = sw.AddonFolder + "/" + SafeFileName(file.FileName);
+                        // Same file already wanted under another name (e.g. a dependency listed twice)
+                        if (wanted.Values.Contains(rel, StringComparer.OrdinalIgnoreCase)) continue;
 
-                    if (oldFile == fileName && (File.Exists(dest) || File.Exists(dest + ".disabled")))
-                    {
-                        wanted[key] = fileName;
-                        continue;
-                    }
+                        var dest = Path.Combine(AppPaths.Server, rel.Replace('/', '\\'));
+                        if (!(oldPath == rel && (File.Exists(dest) || File.Exists(dest + ".disabled"))))
+                        {
+                            await Net.DownloadFileAsync(file.Url, dest, spec.DisplayName, progress, file.Sha256, file.Sha512, file.Sha1).ConfigureAwait(false);
+                            if (oldPath != null && oldPath != rel) DeleteAddon(oldPath);
+                            Log.Success("Installed " + (spec.IsDependency ? "required " : "") + file.FileName + ".");
+                        }
+                        wanted[key] = rel;
 
-                    await Net.DownloadFileAsync(url, dest, "plugin " + spec.DisplayName, progress, sha256, sha512, sha1).ConfigureAwait(false);
-                    if (oldFile != null && oldFile != fileName) DeletePluginFile(oldFile);
-                    wanted[key] = fileName;
-                    Log.Success("Installed plugin " + fileName + ".");
-                }
-                catch (Exception ex)
-                {
-                    // One broken plugin must never stop the whole server.
-                    Log.Warn("Plugin \"" + spec.DisplayName + "\" couldn't be installed: " + Errors.Friendly(ex));
-                    if (oldFile != null) wanted[key] = oldFile;
+                        foreach (var dep in file.RequiredProjects)
+                            if (seenProjects.Add(dep) && !specs.Any(s => string.Equals(s.Modrinth, dep, StringComparison.OrdinalIgnoreCase)))
+                                queue.Enqueue(new PluginSpec { Modrinth = dep, IsDependency = true });
+                    }
+                    catch (Exception ex)
+                    {
+                        // One broken add-on must never stop the whole server.
+                        Log.Warn("\"" + spec.DisplayName + "\" couldn't be installed: " + Errors.Friendly(ex));
+                        if (oldPath != null && oldPath.StartsWith(sw.AddonFolder + "/")) wanted[key] = oldPath;
+                    }
                 }
             }
 
-            foreach (var kv in state.ManagedPlugins)
+            foreach (var kv in old)
             {
-                if (wanted.ContainsKey(kv.Key)) continue;
-                DeletePluginFile(kv.Value);
-                Log.Info("Removed plugin " + kv.Value + " (no longer listed in cardboardbox.json).");
+                if (wanted.TryGetValue(kv.Key, out var keep) && keep == kv.Value) continue;
+                if (wanted.Values.Contains(kv.Value, StringComparer.OrdinalIgnoreCase)) continue;
+                DeleteAddon(kv.Value);
+                Log.Info("Removed " + Path.GetFileName(kv.Value) + " (no longer needed).");
             }
             state.ManagedPlugins = wanted;
         }
 
-        private static async Task<Tuple<string, string, string, string>> ResolveModrinthAsync(string slug, string mcVersion)
+        private static Task<AddonFile> ResolveAsync(PluginSpec spec, ServerSoftware sw, string mcVersion)
         {
-            var loaders = Uri.EscapeDataString("[\"paper\",\"spigot\",\"bukkit\"]");
+            if (!string.IsNullOrWhiteSpace(spec.Geyser)) return ResolveGeyserAsync(spec.Geyser, spec.Geyser == "floodgate" ? sw.FloodgatePlatform : sw.GeyserPlatform);
+            if (!string.IsNullOrWhiteSpace(spec.Modrinth)) return ResolveModrinthAsync(spec.Modrinth.Trim(), sw, mcVersion);
+
+            var url = spec.Url.Trim();
+            var name = spec.File;
+            if (string.IsNullOrWhiteSpace(name)) name = Uri.UnescapeDataString(new Uri(url).Segments.Last());
+            if (!name.EndsWith(".jar", StringComparison.OrdinalIgnoreCase)) name += ".jar";
+            return Task.FromResult(new AddonFile { Name = name, Url = url, FileName = name, Sha256 = spec.Sha256 });
+        }
+
+        /// <summary>Picks the newest release of a Modrinth project that works with this server type and Minecraft version.</summary>
+        public static async Task<AddonFile> ResolveModrinthAsync(string slugOrId, ServerSoftware sw, string mcVersion)
+        {
+            var loaders = Uri.EscapeDataString("[" + string.Join(",", sw.ModrinthLoaders.Select(l => "\"" + l + "\"")) + "]");
             var games = Uri.EscapeDataString("[\"" + mcVersion + "\"]");
-            var url = Modrinth + "project/" + Uri.EscapeDataString(slug) + "/version?loaders=" + loaders + "&game_versions=" + games;
+            var url = Modrinth + "project/" + Uri.EscapeDataString(slugOrId) + "/version?loaders=" + loaders + "&game_versions=" + games;
             var r = await Net.SendAsync(HttpMethod.Get, url).ConfigureAwait(false);
-            if (r.Status == HttpStatusCode.NotFound)
-                throw new FriendlyException("\"" + slug + "\" wasn't found on Modrinth.");
+            if (r.Status == HttpStatusCode.NotFound) throw new FriendlyException("\"" + slugOrId + "\" wasn't found on Modrinth.");
             if (!r.Ok) throw new FriendlyException("Modrinth answered with error " + (int)r.Status + ".");
 
             var versions = Json.ParseArray(r.Body).OfType<Dictionary<string, object>>().ToList();
             var v = versions.FirstOrDefault(x => x.Str("version_type") == "release") ?? versions.FirstOrDefault();
             if (v == null)
-                throw new FriendlyException("\"" + slug + "\" has no version for Minecraft " + mcVersion + " yet.");
+                throw new FriendlyException("\"" + slugOrId + "\" has no " + sw.Name + " version for Minecraft " + mcVersion + " yet.");
 
             var files = v.Arr("files").OfType<Dictionary<string, object>>().ToList();
             var file = files.FirstOrDefault(f => f.Bool("primary")) ?? files.FirstOrDefault();
-            if (file == null) throw new FriendlyException("\"" + slug + "\" has no downloadable file.");
+            if (file == null) throw new FriendlyException("\"" + slugOrId + "\" has no downloadable file.");
             var hashes = file.Obj("hashes");
-            return Tuple.Create(file.Str("url"), file.Str("filename"), hashes.Str("sha512"), hashes.Str("sha1"));
+            var result = new AddonFile
+            {
+                Name = v.Str("name") ?? slugOrId,
+                Url = file.Str("url"),
+                FileName = file.Str("filename"),
+                Sha512 = hashes.Str("sha512"),
+                Sha1 = hashes.Str("sha1"),
+            };
+            foreach (var dep in v.Arr("dependencies").OfType<Dictionary<string, object>>())
+                if (dep.Str("dependency_type") == "required" && !string.IsNullOrEmpty(dep.Str("project_id")))
+                    result.RequiredProjects.Add(dep.Str("project_id"));
+            return result;
         }
 
-        private static void DeletePluginFile(string fileName)
+        /// <summary>Geyser / Floodgate (crossplay) from GeyserMC's download service.</summary>
+        private static async Task<AddonFile> ResolveGeyserAsync(string project, string platform)
         {
-            foreach (var p in new[] { Path.Combine(AppPaths.Plugins, fileName), Path.Combine(AppPaths.Plugins, fileName + ".disabled") })
+            if (platform == null) throw new FriendlyException("Crossplay isn't available for this server type.");
+            var buildUrl = GeyserApi + project + "/versions/latest/builds/latest";
+            var b = Json.ParseObject(await Net.GetStringAsync(buildUrl).ConfigureAwait(false));
+            var dl = b.Obj("downloads").Obj(platform);
+            if (dl == null) throw new FriendlyException(project + " has no download for " + platform + ".");
+            return new AddonFile
+            {
+                Name = project,
+                Url = buildUrl + "/downloads/" + platform,
+                FileName = dl.Str("name") ?? (project + "-" + platform + ".jar"),
+                Sha256 = dl.Str("sha256"),
+            };
+        }
+
+        private static string NormalizePath(string stored) =>
+            stored.Contains("/") ? stored : "plugins/" + stored; // CardboardBox 1.0/1.1 stored plain plugin names
+
+        private static void DeleteAddon(string rel)
+        {
+            var path = Path.Combine(AppPaths.Server, rel.Replace('/', '\\'));
+            foreach (var p in new[] { path, path + ".disabled" })
             {
                 try { if (File.Exists(p)) File.Delete(p); }
-                catch (Exception ex) { Log.Warn("Couldn't delete old plugin " + fileName + ": " + ex.Message); }
+                catch (Exception ex) { Log.Warn("Couldn't delete old " + Path.GetFileName(rel) + ": " + ex.Message); }
             }
         }
 
         private static string SafeFileName(string name)
         {
-            name = Path.GetFileName(name ?? "plugin.jar");
+            name = Path.GetFileName(name ?? "addon.jar");
             foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
-            return name.Length == 0 ? "plugin.jar" : name;
+            return name.Length == 0 ? "addon.jar" : name;
         }
     }
 }

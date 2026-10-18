@@ -65,6 +65,7 @@ namespace CardboardBox.Core
             Settings.PlayitEnabled = false;
             Settings.PlayitAddress = null;
             Settings.PlayitAddressWithPort = null;
+            Settings.PlayitBedrockAddress = null;
             Settings.Save();
             Log.Info("Disconnected from playit.gg. (You can also remove the agent at playit.gg.)");
             RaiseChanged();

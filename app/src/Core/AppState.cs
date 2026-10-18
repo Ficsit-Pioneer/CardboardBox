@@ -19,7 +19,16 @@ namespace CardboardBox.Core
         /// <summary>server-relative path -> sha256 of the repo copy we last applied.</summary>
         public Dictionary<string, string> SyncedFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        // Installed software
+        // Installed server software
+        public string InstalledSoftware;      // paper, purpur, fabric, ...
+        public string InstalledMcVersion;     // e.g. 26.2
+        public string InstalledLoader;        // Paper/Purpur build, Fabric loader, NeoForge/Forge version
+        public string InstalledKey;           // identifies the exact download that's installed
+        public List<string> LaunchArgs = new List<string>();
+        /// <summary>Newest Minecraft version that has opened the current world (worlds can't go back).</summary>
+        public string WorldVersion;
+
+        // From CardboardBox 1.0/1.1 (Paper only) - migrated on load
         public string PaperVersion;
         public int PaperBuild;
         public string PaperSha256;
@@ -55,6 +64,23 @@ namespace CardboardBox.Core
                 s.JavaFlags = new List<string>();
                 foreach (var f in d.Arr("javaFlags")) if (f != null) s.JavaFlags.Add(f.ToString());
                 s.ManagedPlugins = d.StrMap("managedPlugins");
+                s.InstalledSoftware = d.Str("installedSoftware");
+                s.InstalledMcVersion = d.Str("installedMcVersion");
+                s.InstalledLoader = d.Str("installedLoader");
+                s.InstalledKey = d.Str("installedKey");
+                s.LaunchArgs = new List<string>();
+                foreach (var a in d.Arr("launchArgs")) if (a != null) s.LaunchArgs.Add(a.ToString());
+                s.WorldVersion = d.Str("worldVersion");
+                if (s.InstalledSoftware == null && s.PaperVersion != null)
+                {
+                    // CardboardBox 1.0/1.1 only ran Paper
+                    s.InstalledSoftware = "paper";
+                    s.InstalledMcVersion = s.PaperVersion;
+                    s.InstalledLoader = s.PaperBuild.ToString();
+                    s.InstalledKey = "paper|" + s.PaperVersion + "|" + s.PaperBuild;
+                    s.LaunchArgs = new List<string> { "-jar", "server.jar", "--nogui" };
+                    if (s.WorldVersion == null) s.WorldVersion = s.PaperVersion;
+                }
                 s.PlayitVersion = d.Str("playitVersion");
                 if (DateTime.TryParse(d.Str("playitCheckedUtc"), null, System.Globalization.DateTimeStyles.RoundtripKind, out var pc))
                     s.PlayitCheckedUtc = pc.ToUniversalTime();
@@ -83,6 +109,12 @@ namespace CardboardBox.Core
                 ["javaMinimum"] = JavaMinimum,
                 ["javaFlags"] = JavaFlags,
                 ["managedPlugins"] = ManagedPlugins,
+                ["installedSoftware"] = InstalledSoftware,
+                ["installedMcVersion"] = InstalledMcVersion,
+                ["installedLoader"] = InstalledLoader,
+                ["installedKey"] = InstalledKey,
+                ["launchArgs"] = LaunchArgs,
+                ["worldVersion"] = WorldVersion,
                 ["playitVersion"] = PlayitVersion,
                 ["playitCheckedUtc"] = PlayitCheckedUtc == default(DateTime) ? null : (object)PlayitCheckedUtc,
             };

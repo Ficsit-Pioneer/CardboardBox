@@ -21,6 +21,7 @@ namespace CardboardBox.Core
         public static string RepoSnapshot => Path.Combine(Root, "cache", "repo");
         public static string Server => Path.Combine(Root, "server");
         public static string Plugins => Path.Combine(Root, "server", "plugins");
+        public static string Mods => Path.Combine(Root, "server", "mods");
         public static string Backups => Path.Combine(Root, "backups");
         public static string Overrides => Path.Combine(Root, "overrides");
         public static string OverrideIcon => Path.Combine(Root, "overrides", "server-icon.png");

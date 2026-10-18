@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace CardboardBox.Core
@@ -162,7 +165,7 @@ namespace CardboardBox.Core
 
         // ------------------------------------------------------------------ pushing to GitHub
 
-        /// <summary>Uploads the settings changed in the app (server.properties + icon) to the GitHub repo.</summary>
+        /// <summary>Uploads the settings changed in the app (server type, server.properties, icon) to the GitHub repo.</summary>
         public async Task PushSettingsToGitHubAsync()
         {
             var repoProps = ServerProperties.Load(ServerProperties.RepoPath);
@@ -173,6 +176,21 @@ namespace CardboardBox.Core
             SetBusy("Uploading settings to GitHub...");
             try
             {
+                if (Settings.HasServerTypeOverride)
+                {
+                    var software = Settings.SoftwareOverride;
+                    var version = Settings.VersionOverride;
+                    var crossplay = Settings.CrossplayOverride;
+                    await UpdateManifestOnGitHubAsync(d =>
+                    {
+                        if (software != null) d["software"] = software;
+                        if (version != null) d["minecraftVersion"] = version;
+                        if (crossplay != null) d["crossplay"] = crossplay.Value;
+                    }, "Change server type (from CardboardBox)");
+                    Settings.SoftwareOverride = null;
+                    Settings.VersionOverride = null;
+                    Settings.CrossplayOverride = null;
+                }
                 await GitHub.PutFileAsync("server/server.properties", File.ReadAllBytes(tmp), "Update server settings (from CardboardBox)");
                 if (File.Exists(AppPaths.OverrideIcon))
                     await GitHub.PutFileAsync("server/server-icon.png", File.ReadAllBytes(AppPaths.OverrideIcon), "Update server icon (from CardboardBox)");
@@ -190,18 +208,78 @@ namespace CardboardBox.Core
             await CheckForUpdatesAsync(false);
         }
 
-        public async Task UploadPluginToGitHubAsync(string jarPath)
+        public async Task UploadPluginToGitHubAsync(string jarPath, string folder)
         {
             var info = new FileInfo(jarPath);
             if (info.Length > 50L * 1024 * 1024)
-                throw new FriendlyException("That plugin is bigger than 50 MB - too big to upload this way.", "Add it to cardboardbox.json as a download link instead.");
-            SetBusy("Uploading " + info.Name + " to GitHub...");
+                throw new FriendlyException("That file is bigger than 50 MB - too big to upload this way.", "Add it to cardboardbox.json as a download link instead.");
+            var name = info.Name.EndsWith(".disabled") ? info.Name.Substring(0, info.Name.Length - ".disabled".Length) : info.Name;
+            SetBusy("Uploading " + name + " to GitHub...");
             try
             {
-                await GitHub.PutFileAsync("server/plugins/" + info.Name, File.ReadAllBytes(jarPath), "Add plugin " + info.Name + " (from CardboardBox)");
-                Log.Success("Uploaded " + info.Name + " to GitHub.");
+                await GitHub.PutFileAsync("server/" + (folder ?? "plugins") + "/" + name, File.ReadAllBytes(jarPath), "Add " + name + " (from CardboardBox)");
+                Log.Success("Uploaded " + name + " to GitHub.");
             }
             finally { ClearBusy(); }
+        }
+
+        /// <summary>Changes cardboardbox.json in the GitHub repo (reads the newest copy first, so nothing is lost).</summary>
+        public async Task UpdateManifestOnGitHubAsync(Action<Dictionary<string, object>> change, string message)
+        {
+            var current = await GitHub.GetFileAsync("cardboardbox.json");
+            var d = current == null ? new Dictionary<string, object>() : Json.ParseObject(Encoding.UTF8.GetString(current).TrimStart('\uFEFF'));
+            change(d);
+            await GitHub.PutFileAsync("cardboardbox.json", new UTF8Encoding(false).GetBytes(Json.Write(d, true) + "\n"), message);
+        }
+
+        /// <summary>
+        /// Installs a plugin / mod from Modrinth (with its required dependencies) on this PC,
+        /// and optionally adds it to the GitHub list so every server gets it.
+        /// </summary>
+        public async Task<List<string>> InstallFromModrinthAsync(string slug, bool forEveryone)
+        {
+            var sw = Software;
+            var mc = State.InstalledMcVersion;
+            if (sw.AddonFolder == null || mc == null) throw new FriendlyException(sw.Name + " can't use plugins or mods.");
+            var folder = Path.Combine(AppPaths.Server, sw.AddonFolder);
+            Directory.CreateDirectory(folder);
+
+            var installed = new List<string>();
+            var queue = new Queue<string>(new[] { slug });
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { slug };
+            try
+            {
+                while (queue.Count > 0 && installed.Count < 15)
+                {
+                    var id = queue.Dequeue();
+                    SetBusy("Installing " + id + "...");
+                    var file = await Installer.ResolveModrinthAsync(id, sw, mc);
+                    var dest = Path.Combine(folder, Path.GetFileName(file.FileName));
+                    if (!File.Exists(dest))
+                        await Net.DownloadFileAsync(file.Url, dest, file.Name, Progress, file.Sha256, file.Sha512, file.Sha1);
+                    installed.Add(Path.GetFileName(file.FileName));
+                    foreach (var dep in file.RequiredProjects) if (seen.Add(dep)) queue.Enqueue(dep);
+                }
+            }
+            finally { ClearBusy(); }
+            Log.Success("Installed " + string.Join(", ", installed) + ".");
+
+            if (forEveryone)
+            {
+                SetBusy("Adding " + slug + " to the GitHub list...");
+                try
+                {
+                    await UpdateManifestOnGitHubAsync(d =>
+                    {
+                        var list = d.Arr("plugins");
+                        if (!list.Any(x => string.Equals(x as string, slug, StringComparison.OrdinalIgnoreCase))) list.Add(slug);
+                        d["plugins"] = list;
+                    }, "Add " + slug + " (from CardboardBox)");
+                    Log.Success(slug + " was added to the GitHub list - every server will install it.");
+                }
+                finally { ClearBusy(); }
+            }
+            return installed;
         }
 
         // ------------------------------------------------------------------ app self-update

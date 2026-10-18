@@ -50,6 +50,8 @@ namespace CardboardBox.Core
             Server.PlayersChanged += RaiseChanged;
             Server.Exited += (code, crashed) => _ui.Post(_ => OnServerExited(code, crashed), null);
             Playit.Changed += RaiseChanged;
+            Server.OutputLine += WatchGeyserOutput;
+            Server.StatusChanged += () => { if (Server.Status == ServerStatus.Running) _ui.Post(_ => OnServerRunning(), null); };
         }
 
         public void RaiseChanged() => _ui.Post(_ => { try { Changed?.Invoke(); } catch (Exception ex) { Log.WriteFileOnly("UI refresh failed: " + ex); } }, null);
@@ -184,29 +186,7 @@ namespace CardboardBox.Core
             SetBusy("Copying server files...");
             ApplySnapshot();
 
-            SetBusy("Checking for Minecraft server (Paper) updates...");
-            try
-            {
-                var rel = await Installer.ResolvePaperAsync(Manifest);
-                State.JavaMinimum = rel.JavaMinimum;
-                State.JavaFlags = rel.JavaFlags;
-                await Installer.EnsurePaperAsync(rel, State, Progress);
-                State.Save();
-            }
-            catch (Exception ex)
-            {
-                if (!File.Exists(AppPaths.ServerJar) || State.JavaMinimum == 0) throw;
-                Log.Warn("Couldn't check for Paper updates, using the installed version: " + Errors.Friendly(ex));
-            }
-
-            int javaFeature = Manifest.JavaVersion > 0 ? Manifest.JavaVersion : Installer.PickJavaFeature(State.JavaMinimum);
-            SetBusy("Checking Java " + javaFeature + "...");
-            _javaExe = await Installer.EnsureJavaAsync(javaFeature, Progress);
-
-            SetBusy("Checking plugins...");
-            await Installer.EnsurePluginsAsync(Manifest, State.PaperVersion ?? Manifest.MinecraftVersion, State, Progress);
-            RepoSync.ApplyDisabledPlugins(Settings);
-            State.Save();
+            await InstallSoftwareAsync();
 
             if (Settings.EulaAccepted) WriteEula();
         }
@@ -243,7 +223,8 @@ namespace CardboardBox.Core
                 SetBusy("Starting the server...");
                 var flags = new List<string>(State.JavaFlags);
                 flags.AddRange(Manifest.ExtraJvmFlags);
-                Server.Start(_javaExe, RamMB, flags);
+                if (CrossplayActive) flags.AddRange(GeyserConfig.JvmFlags);
+                Server.Start(_javaExe, RamMB, flags, State.LaunchArgs);
                 if (Settings.KeepPcAwake) Native.KeepAwake(true);
                 RestartNeeded = false;
                 LastError = null;

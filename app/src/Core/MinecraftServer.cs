@@ -52,10 +52,19 @@ namespace CardboardBox.Core
             try { StatusChanged?.Invoke(); } catch (Exception ex) { Log.WriteFileOnly("status handler failed: " + ex); }
         }
 
-        public void Start(string javaExe, int ramMB, IEnumerable<string> javaFlags)
+        /// <param name="launchArgs">What starts the server software, e.g. "-jar server.jar --nogui"
+        /// or (Forge/NeoForge) "@libraries/.../win_args.txt --nogui".</param>
+        public void Start(string javaExe, int ramMB, IEnumerable<string> javaFlags, IList<string> launchArgs)
         {
             if (IsAlive) throw new FriendlyException("The server is already running.");
-            if (!File.Exists(AppPaths.ServerJar)) throw new FriendlyException("server.jar is missing.", "It will be downloaded again on the next start.");
+            if (launchArgs == null || launchArgs.Count == 0)
+                throw new FriendlyException("The server software isn't installed yet.", "It will be installed on the next start.");
+            foreach (var a in launchArgs)
+            {
+                var file = a.StartsWith("@") ? a.Substring(1) : a.EndsWith(".jar") ? a : null;
+                if (file != null && !File.Exists(Path.Combine(AppPaths.Server, file)))
+                    throw new FriendlyException(file + " is missing.", "It will be downloaded again on the next start.");
+            }
 
             var args = new List<string> { "-Xms" + ramMB + "M", "-Xmx" + ramMB + "M" };
             args.AddRange(javaFlags.Where(f => !string.IsNullOrWhiteSpace(f) && !f.StartsWith("-Xm")));
@@ -63,8 +72,8 @@ namespace CardboardBox.Core
             {
                 "-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8",
                 "-Dterminal.jline=false", "-Dterminal.ansi=false",
-                "-jar", "server.jar", "--nogui",
             });
+            args.AddRange(launchArgs);
 
             var psi = new ProcessStartInfo
             {
@@ -91,12 +100,16 @@ namespace CardboardBox.Core
             LastProblem = null;
             _stopRequested = false;
 
+            PreferUtf8WithoutBom();
             try { p.Start(); }
             catch (Exception ex) { throw new FriendlyException("Java couldn't be started.", ex.Message, ex); }
 
             Native.TieToThisProcess(p);
             _proc = p;
             _stdin = new StreamWriter(p.StandardInput.BaseStream, new UTF8Encoding(false)) { AutoFlush = true, NewLine = "\n" };
+            // If Windows still made .NET send an invisible byte-order mark first, end that line now so it
+            // can't spoil the first real command (otherwise "stop" arrives as "\uFEFFstop" and is ignored).
+            try { if (p.StandardInput.Encoding.GetPreamble().Length > 0) _stdin.WriteLine(); } catch { }
             StartedAt = DateTime.Now;
             SetStatus(ServerStatus.Starting);
             p.BeginOutputReadLine();
@@ -203,9 +216,32 @@ namespace CardboardBox.Core
                 return "Java couldn't get the amount of RAM chosen. Lower the RAM in Server Settings.";
             if (line.Contains("session.lock") && line.Contains("already"))
                 return "The world is already open in another server. Close the other server (or restart the PC) and try again.";
+            var missing = System.Text.RegularExpressions.Regex.Match(line, @"Mod '([^']+)'.*requires.* of ([\w-]+), which is missing");
+            if (missing.Success)
+                return "The mod \"" + missing.Groups[1].Value + "\" needs another mod (\"" + missing.Groups[2].Value + "\") that isn't installed. " +
+                       "Add it on the Plugins & Mods page, or remove \"" + missing.Groups[1].Value + "\".";
+            if (line.IndexOf("missing dependenc", StringComparison.OrdinalIgnoreCase) >= 0 || line.Contains("Unknown dependency"))
+                return "A plugin needs another plugin that isn't installed (" + line.Substring(Math.Max(0, line.LastIndexOf(':') + 1)).Trim() + "). " +
+                       "Add it on the Plugins & Mods page. The server keeps running without that plugin.";
             if (line.Contains("Could not load 'plugins") || line.Contains("Error occurred while enabling"))
                 return "A plugin failed to load - check the Console page for which one. The server keeps running without it.";
             return null;
+        }
+
+        /// <summary>
+        /// .NET Framework opens a started program's input with the console's encoding. When that is UTF-8
+        /// (Windows' "Beta: Use Unicode UTF-8" setting, or a UTF-8 console), it first writes a byte-order mark,
+        /// which Minecraft reads as part of the first command. Telling .NET to use UTF-8 without a mark avoids that.
+        /// </summary>
+        private static void PreferUtf8WithoutBom()
+        {
+            try
+            {
+                var field = typeof(Console).GetField("inputEncoding", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
+                            ?? typeof(Console).GetField("_inputEncoding", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                field?.SetValue(null, new UTF8Encoding(false));
+            }
+            catch { /* the fallback in Start handles it */ }
         }
 
         private static string Quote(string a) => a.IndexOf(' ') >= 0 || a.IndexOf('"') >= 0 ? "\"" + a.Replace("\"", "\\\"") + "\"" : a;

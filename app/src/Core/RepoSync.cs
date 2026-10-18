@@ -101,8 +101,9 @@ namespace CardboardBox.Core
         public static void ApplyDisabledPlugins(Settings settings)
         {
             foreach (var name in settings.DisabledPlugins)
+            foreach (var folder in new[] { AppPaths.Plugins, AppPaths.Mods })
             {
-                var jar = Path.Combine(AppPaths.Plugins, name);
+                var jar = Path.Combine(folder, name);
                 if (!File.Exists(jar)) continue;
                 var off = jar + ".disabled";
                 try

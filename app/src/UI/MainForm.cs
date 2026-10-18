@@ -257,7 +257,7 @@ namespace CardboardBox.UI
             {
                 Text = text, TextAlign = ContentAlignment.MiddleLeft, FlatStyle = FlatStyle.Flat,
                 ForeColor = Theme.SidebarText, BackColor = Theme.Sidebar, Font = new Font("Segoe UI Semibold", 10.5f),
-                Width = 210, Height = 42, Margin = new Padding(0), Padding = new Padding(18, 0, 0, 0), Cursor = Cursors.Hand,
+                Width = 210, Height = 42, Margin = new Padding(0), Padding = new Padding(18, 0, 0, 0), Cursor = Cursors.Hand, UseMnemonic = false,
                 UseVisualStyleBackColor = false,
             };
             b.FlatAppearance.BorderSize = 0;

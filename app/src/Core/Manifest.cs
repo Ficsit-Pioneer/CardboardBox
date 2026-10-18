@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace CardboardBox.Core
@@ -17,8 +18,18 @@ namespace CardboardBox.Core
         /// <summary>Optional sha256 of the Url download.</summary>
         public string Sha256;
 
-        public string Key => !string.IsNullOrWhiteSpace(Modrinth) ? "modrinth:" + Modrinth.Trim().ToLowerInvariant() : "url:" + Url;
-        public string DisplayName => !string.IsNullOrWhiteSpace(Modrinth) ? Modrinth : (File ?? Url);
+        /// <summary>"geyser" or "floodgate" - added automatically when crossplay is on.</summary>
+        public string Geyser;
+        /// <summary>Added automatically because another add-on needs it.</summary>
+        public bool IsDependency;
+
+        public string Key =>
+            !string.IsNullOrWhiteSpace(Geyser) ? "geyser:" + Geyser :
+            !string.IsNullOrWhiteSpace(Modrinth) ? "modrinth:" + Modrinth.Trim().ToLowerInvariant() : "url:" + Url;
+
+        public string DisplayName =>
+            !string.IsNullOrWhiteSpace(Geyser) ? (Geyser == "floodgate" ? "Floodgate (crossplay)" : "Geyser (crossplay)") :
+            !string.IsNullOrWhiteSpace(Modrinth) ? Modrinth : (File ?? Url);
     }
 
     /// <summary>
@@ -27,8 +38,14 @@ namespace CardboardBox.Core
     public class Manifest
     {
         public string ServerName = "CardboardBox";
-        /// <summary>Minecraft version, e.g. "26.3", or "latest" for the newest stable Paper release.</summary>
+        /// <summary>Server software: paper, purpur, fabric, neoforge, forge or vanilla.</summary>
+        public string Software = "paper";
+        /// <summary>Minecraft version, e.g. "26.2", or "latest" for the newest stable release.</summary>
         public string MinecraftVersion = "latest";
+        /// <summary>Optional exact Fabric loader / NeoForge / Forge version. Empty = newest stable.</summary>
+        public string LoaderVersion;
+        /// <summary>Let Bedrock players (phones, consoles, Windows) join too, using Geyser + Floodgate.</summary>
+        public bool Crossplay;
         /// <summary>0 = newest stable Paper build for that version.</summary>
         public int PaperBuild;
         /// <summary>0 = pick automatically from what Paper says it needs.</summary>
@@ -62,16 +79,24 @@ namespace CardboardBox.Core
             var m = new Manifest
             {
                 ServerName = d.Str("serverName", "CardboardBox"),
+                Software = (d.Str("software", "paper") ?? "paper").Trim().ToLowerInvariant(),
                 MinecraftVersion = d.Str("minecraftVersion", "latest"),
+                LoaderVersion = d.Str("loaderVersion"),
+                Crossplay = d.Bool("crossplay"),
                 PaperBuild = d.Int("paperBuild", 0),
                 JavaVersion = d.Int("javaVersion", 0),
                 DefaultRamGB = Math.Max(1, d.Int("defaultRamGB", 4)),
                 Announcement = d.Str("announcement"),
             };
+            // CardboardBox 1.0/1.1 used "paperBuild" for the same thing
+            if (string.IsNullOrWhiteSpace(m.LoaderVersion) && m.PaperBuild > 0) m.LoaderVersion = m.PaperBuild.ToString();
+            if (string.IsNullOrWhiteSpace(m.LoaderVersion)) m.LoaderVersion = null;
+
             foreach (var f in d.Arr("extraJvmFlags"))
                 if (f != null && !string.IsNullOrWhiteSpace(f.ToString())) m.ExtraJvmFlags.Add(f.ToString().Trim());
 
-            foreach (var item in d.Arr("plugins"))
+            // "mods" is accepted as another name for the same list
+            foreach (var item in d.Arr("plugins").Concat(d.Arr("mods")))
             {
                 if (item is string s && !string.IsNullOrWhiteSpace(s))
                 {

@@ -11,7 +11,7 @@ using CardboardBox.Core;
 namespace CardboardBox.UI.Pages
 {
     /// <summary>MOTD, icon, max players, RAM and the other everyday server settings.</summary>
-    public class SettingsPage : Page
+    public partial class SettingsPage : Page
     {
         private readonly TextBox _motd;
         private readonly MotdPreview _preview;
@@ -35,6 +35,8 @@ namespace CardboardBox.UI.Pages
         public SettingsPage(MainForm main, AppController c)
             : base(main, c, "Server Settings", "Changes are saved on this PC. Upload them to GitHub to share them with every copy of CardboardBox.")
         {
+            BuildServerTypeCard();
+
             // ---------- look
             var look = new Card("How your server looks");
             _motd = new TextBox { Multiline = true, Width = 460, Height = 46, Font = Theme.Mono, ScrollBars = ScrollBars.None, AcceptsReturn = true };
@@ -79,6 +81,8 @@ namespace CardboardBox.UI.Pages
                 _whitelist, _flight);
             Place(run);
 
+            BuildWorldCard();
+
             // ---------- playit.gg
             var share = new Card("Friends outside your home (playit.gg)");
             _playitStatus = new Label { AutoSize = true, MaximumSize = new Size(900, 0), UseMnemonic = false, Margin = new Padding(0, 0, 0, 6) };
@@ -121,7 +125,7 @@ namespace CardboardBox.UI.Pages
             var buttons = Theme.Stack(Theme.Row(_save, _push, _reset), _overridesNote);
             Place(buttons, 2);
 
-            VisibleChanged += (s, e) => { if (Visible) LoadValues(); };
+            VisibleChanged += (s, e) => { if (Visible) { LoadValues(); LoadServerType(); } };
         }
 
         private void LoadValues()
@@ -138,6 +142,7 @@ namespace CardboardBox.UI.Pages
                 _gamemode.SelectedIndex = Math.Max(0, Array.IndexOf(Gamemodes, (P("gamemode", "survival") ?? "survival").ToLowerInvariant()));
                 _whitelist.Checked = string.Equals(P("white-list", "false"), "true", StringComparison.OrdinalIgnoreCase);
                 _flight.Checked = string.Equals(P("allow-flight", "false"), "true", StringComparison.OrdinalIgnoreCase);
+                LoadWorldValues(P);
 
                 _ram.Value = Math.Max(_ram.Minimum, Math.Min(_ram.Maximum, C.RamMB / 512));
                 _autoStart.Checked = C.Settings.AutoStartServer;
@@ -239,6 +244,7 @@ namespace CardboardBox.UI.Pages
                 ["white-list"] = _whitelist.Checked ? "true" : "false",
                 ["allow-flight"] = _flight.Checked ? "true" : "false",
             };
+            AddWorldChanges(changes);
             C.SaveServerProperties(changes);
 
             if (_pendingIcon == "") C.SetServerIcon(null);
@@ -261,6 +267,7 @@ namespace CardboardBox.UI.Pages
 
         public override void RefreshView()
         {
+            RefreshServerType();
             _refreshingPlayit = true;
             try
             {

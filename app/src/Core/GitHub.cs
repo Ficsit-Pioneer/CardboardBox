@@ -143,6 +143,17 @@ namespace CardboardBox.Core
             return new ReleaseInfo { Tag = tag, Version = v, ExeUrl = exe, PageUrl = d.Str("html_url"), Notes = d.Str("body") };
         }
 
+        /// <summary>Reads one file from the repo as it is right now (null if it doesn't exist).</summary>
+        public async Task<byte[]> GetFileAsync(string repoPath)
+        {
+            var url = ApiBase + "/contents/" + string.Join("/", repoPath.Split('/').Select(Uri.EscapeDataString)) + "?ref=" + Uri.EscapeDataString(_settings.Branch);
+            var r = await Net.SendAsync(HttpMethod.Get, url, Headers()).ConfigureAwait(false);
+            if (r.Status == HttpStatusCode.NotFound) return null;
+            if (!r.Ok) ThrowPushError(r);
+            var content = Json.ParseObject(r.Body).Str("content") ?? "";
+            return Convert.FromBase64String(content.Replace("\n", "").Replace("\r", ""));
+        }
+
         /// <summary>Creates or replaces one file in the repo (needs a token with write access).</summary>
         public async Task PutFileAsync(string repoPath, byte[] content, string message)
         {
@@ -184,6 +195,10 @@ namespace CardboardBox.Core
         public static void DeleteDirectory(string path)
         {
             if (!Directory.Exists(path)) return;
+            // Minecraft library folders can go past Windows' old 260-character limit;
+            // the "\\?\" prefix lets Windows handle long paths.
+            var full = Path.GetFullPath(path);
+            if (!full.StartsWith(@"\\")) path = @"\\?\" + full;
             for (int i = 0; i < 3; i++)
             {
                 try
