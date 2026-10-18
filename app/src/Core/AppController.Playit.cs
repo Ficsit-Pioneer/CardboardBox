@@ -11,6 +11,8 @@ namespace CardboardBox.Core
 
         public bool UsingPlayit => Settings.PlayitEnabled && Settings.HasPlayit;
 
+        private string AgentVersion => string.IsNullOrEmpty(State.PlayitVersion) ? "1.0.10" : State.PlayitVersion.TrimStart('v', 'V');
+
         /// <summary>The address friends outside the home should use (playit.gg if set up, else the public IP).</summary>
         public string InternetAddress =>
             UsingPlayit && !string.IsNullOrEmpty(Settings.PlayitAddress) ? Settings.PlayitAddress
@@ -19,26 +21,30 @@ namespace CardboardBox.Core
         /// <summary>Links this PC to a playit.gg account (the person approves it in the browser) and creates the tunnel.</summary>
         public async Task<PlayitTunnel> SetupPlayitAsync(string claimCode, Action<string> status, CancellationToken token)
         {
-            var secret = await Playit.ClaimAsync(claimCode, status, token);
+            await Playit.EnsureAgentAsync(State, null);
+            var secret = await Playit.ClaimAsync(claimCode, AgentVersion, status, token);
             Settings.PlayitSecret = secret;
             Settings.PlayitEnabled = true;
             Settings.Save();
             Log.Success("CardboardBox is now linked to your playit.gg account.");
+            await Playit.NameAgentAsync(secret);
 
-            status("Downloading the playit.gg agent...");
-            await Playit.EnsureAgentAsync(State, null);
-
-            status("Creating your Minecraft tunnel...");
-            var tunnel = await Playit.EnsureTunnelAsync(secret, Port);
-            if (tunnel != null) SavePlayitAddress(tunnel);
-
-            if (Server.IsAlive)
+            // The agent has to connect once before playit lets it own a tunnel.
+            status("Connecting to playit.gg...");
+            Playit.Stop();
+            Playit.Start(secret);
+            try
             {
-                Playit.Stop();
-                Playit.Start(secret);
+                status("Creating your Minecraft tunnel (this can take a minute)...");
+                var tunnel = await Playit.EnsureTunnelAsync(secret, Port);
+                if (tunnel != null) SavePlayitAddress(tunnel);
+                return tunnel;
             }
-            RaiseChanged();
-            return tunnel;
+            finally
+            {
+                if (!Server.IsAlive) Playit.Stop(); // it starts again with the server
+                RaiseChanged();
+            }
         }
 
         /// <summary>Turns the tunnel on or off without forgetting the playit.gg link.</summary>
@@ -73,9 +79,9 @@ namespace CardboardBox.Core
                 await Playit.EnsureAgentAsync(State, Progress);
                 ClearBusy();
                 var secret = Settings.PlayitSecret;
-                var tunnel = await Playit.EnsureTunnelAsync(secret, Port);
                 if (!Server.IsAlive || !UsingPlayit) return;
                 Playit.Start(secret);
+                var tunnel = await Playit.EnsureTunnelAsync(secret, Port);
 
                 // A brand-new tunnel can take a little while to get its address.
                 for (int i = 0; tunnel == null && i < 12 && Server.IsAlive; i++)

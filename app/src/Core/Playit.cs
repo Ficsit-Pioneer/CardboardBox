@@ -16,7 +16,10 @@ namespace CardboardBox.Core
     {
         /// <summary>What friends type into Minecraft.</summary>
         public string Address;
-        /// <summary>Same tunnel written as host:port, in case a launcher ignores SRV records.</summary>
+        /// <summary>
+        /// Same tunnel written as host:port. For reference only: playit checks the hostname inside the
+        /// Minecraft handshake, so players should use <see cref="Address"/> (the game resolves the SRV record).
+        /// </summary>
         public string AddressWithPort;
         public bool Disabled;
     }
@@ -105,13 +108,14 @@ namespace CardboardBox.Core
         }
 
         /// <summary>Waits until the person approves CardboardBox on playit.gg, then returns the agent secret key.</summary>
-        public static async Task<string> ClaimAsync(string code, Action<string> status, CancellationToken token)
+        public static async Task<string> ClaimAsync(string code, string agentVersion, Action<string> status, CancellationToken token)
         {
             var setup = new Dictionary<string, object>
             {
                 ["code"] = code,
                 ["agent_type"] = "self-managed", // lets this key create its own tunnel
-                ["version"] = "CardboardBox " + AppPaths.AppVersionText,
+                // Must look like "playit 1.0.10": playit treats agents with an unreadable version as too old.
+                ["version"] = "playit " + agentVersion,
             };
 
             var giveUp = DateTime.UtcNow.AddMinutes(30);
@@ -171,14 +175,14 @@ namespace CardboardBox.Core
             {
                 if (tunnel.Int("local_port") != port || tunnel.Str("local_ip") != "127.0.0.1")
                 {
-                    await CallAsync("/tunnels/update", new Dictionary<string, object>
+                    await WhileAgentConnects(() => CallAsync("/tunnels/update", new Dictionary<string, object>
                     {
                         ["tunnel_id"] = tunnel.Str("id"),
                         ["local_ip"] = "127.0.0.1",
                         ["local_port"] = port,
                         ["agent_id"] = agentId,
                         ["enabled"] = true,
-                    }, secret).ConfigureAwait(false);
+                    }, secret), port).ConfigureAwait(false);
                     Log.Info("Pointed the playit.gg tunnel at port " + port + ".");
                 }
                 return Describe(tunnel);
@@ -187,9 +191,7 @@ namespace CardboardBox.Core
             bool pending = run.Arr("pending").OfType<Dictionary<string, object>>().Any(t => t.Str("tunnel_type") == "minecraft-java");
             if (!pending)
             {
-                try
-                {
-                    await CallAsync("/tunnels/create", new Dictionary<string, object>
+                await WhileAgentConnects(() => CallAsync("/tunnels/create", new Dictionary<string, object>
                     {
                         ["name"] = "CardboardBox Minecraft",
                         ["tunnel_type"] = "minecraft-java",
@@ -204,13 +206,8 @@ namespace CardboardBox.Core
                         ["alloc"] = null,
                         ["firewall_id"] = null,
                         ["proxy_protocol"] = null,
-                    }, secret).ConfigureAwait(false);
-                    Log.Info("Created a playit.gg tunnel for Minecraft.");
-                }
-                catch (FailException f)
-                {
-                    throw TunnelCreateProblem(f.Reason, port);
-                }
+                    }, secret), port).ConfigureAwait(false);
+                Log.Info("Created a playit.gg tunnel for Minecraft.");
             }
 
             // New tunnels take a few seconds to get an address.
@@ -221,6 +218,41 @@ namespace CardboardBox.Core
                 if (tunnel != null) return Describe(tunnel);
             }
             return null;
+        }
+
+        /// <summary>
+        /// Runs a tunnel change. Right after linking, playit may answer "AgentVersionTooOld" until the
+        /// agent program has connected once and reported its version, so that answer is retried for a minute.
+        /// </summary>
+        private static async Task WhileAgentConnects(Func<Task<object>> call, int port)
+        {
+            for (int attempt = 0; ; attempt++)
+            {
+                try { await call().ConfigureAwait(false); return; }
+                catch (FailException f) when (f.Reason == "AgentVersionTooOld" && attempt < 12)
+                {
+                    await Task.Delay(5000).ConfigureAwait(false);
+                }
+                catch (FailException f)
+                {
+                    throw TunnelCreateProblem(f.Reason, port);
+                }
+            }
+        }
+
+        /// <summary>Names the agent on playit.gg so it's recognisable in the dashboard (best effort).</summary>
+        public static async Task NameAgentAsync(string secret)
+        {
+            try
+            {
+                var run = await RunDataAsync(secret).ConfigureAwait(false);
+                await CallAsync("/agents/rename", new Dictionary<string, object>
+                {
+                    ["agent_id"] = run.Str("agent_id"),
+                    ["name"] = "CardboardBox (" + Environment.MachineName + ")",
+                }, secret).ConfigureAwait(false);
+            }
+            catch (Exception ex) { Log.WriteFileOnly("INFO couldn't rename playit agent: " + ex.Message); }
         }
 
         private static async Task<Dictionary<string, object>> RunDataAsync(string secret)
@@ -270,6 +302,9 @@ namespace CardboardBox.Core
                 case "RequiresVerifiedAccount":
                     return new FriendlyException("playit.gg needs you to verify your email before it can make a tunnel.",
                         "Check your inbox for the playit.gg email, then press Set up playit.gg again.");
+                case "AgentVersionTooOld":
+                    return new FriendlyException("playit.gg didn't see the CardboardBox agent come online.",
+                        "Check the internet connection and press Set up playit.gg again.");
                 case "RequiresPlayitPremium":
                     return new FriendlyException("playit.gg says this kind of tunnel needs playit Premium.",
                         "Create a free \"Minecraft Java\" tunnel on playit.gg by hand instead.");
@@ -377,7 +412,9 @@ namespace CardboardBox.Core
             if (string.IsNullOrWhiteSpace(line)) return;
             line = Ansi.Replace(line, "").Trim();
             Log.WriteFileOnly("playit: " + line);
-            if (line.Contains(" ERROR ")) Log.Warn("[playit] " + Shorten(line));
+            // The agent probes several tunnel servers (including IPv6 ones); failed probes are normal noise.
+            bool probeNoise = line.Contains("failed to send initial ping") || line.Contains("failed to ping tunnel server");
+            if (line.Contains(" ERROR ") && !probeNoise) Log.Warn("[playit] " + Shorten(line));
             else if (!_keyRejected && (line.Contains("InvalidAgentKey") || line.Contains("Invalid secret")))
             {
                 _keyRejected = true; // restarting won't help
