@@ -9,6 +9,6 @@
   "defaultRamGB": 4,
   "announcement": "Welcome to CardboardBox! Press Start, then share the address on the Dashboard with your friends.",
   "extraJvmFlags": [],
-  "plugins": ["viaversion", "viabackwards", "donutsmp-homes", "worldedit", "worldguard", "just-tpa"]
+  "plugins": ["viaversion", "viabackwards", "donutsmp-homes", "worldedit", "worldguard", "just-tpa", "customworldheight"]
 }
 
