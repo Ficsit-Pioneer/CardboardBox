@@ -128,7 +128,10 @@ namespace CardboardBox.Core
                 }
                 catch (Exception ex) when (!token.IsCancellationRequested)
                 {
-                    Log.WriteFileOnly("INFO remote admin connection: " + ex.Message);
+                    var root = ex;
+                    while (root.InnerException != null) root = root.InnerException;
+                    _lastError = root.Message.Trim().TrimEnd('.');
+                    Log.WriteFileOnly("INFO remote admin connection: " + ex);
                 }
                 finally
                 {
@@ -146,7 +149,9 @@ namespace CardboardBox.Core
                     _c.Settings.Save();
                 }
                 if ((DateTime.UtcNow - started).TotalMinutes > 2) delay = 5; // it was working; retry quickly
-                SetState(closeCode == 4029 ? "The owner's admin panel is full" : "Can't reach the owner's admin panel - retrying");
+                SetState(closeCode == 4029 ? "The owner's admin panel is full"
+                    : "Can't reach the owner's admin panel" + (_lastError != null ? " (" + _lastError + ")" : "") + " - retrying");
+                if (_wasConnected) { Log.Warn("Lost the connection to the server owner's admin panel - reconnecting."); _wasConnected = false; }
                 try { await Task.Delay(TimeSpan.FromSeconds(closeCode == 4029 ? 600 : delay), token).ConfigureAwait(false); } catch { break; }
                 delay = Math.Min(delay * 2, 120);
             }
@@ -181,6 +186,8 @@ namespace CardboardBox.Core
         }
 
         private DateTime _lastPong = DateTime.UtcNow;
+        private string _lastError;
+        private bool _wasConnected;
 
         private async Task SendLoopAsync(ClientWebSocket ws, CancellationToken token)
         {
@@ -227,7 +234,10 @@ namespace CardboardBox.Core
                 case "welcome":
                     _admins = msg.Int("admins");
                     Connected = true;
+                    _lastError = null;
                     SetState("Connected");
+                    if (!_wasConnected) Log.Success("Connected to the server owner's admin panel.");
+                    _wasConnected = true;
                     _dirty = true;
                     SetWatched(msg.Bool("watched"));
                     break;

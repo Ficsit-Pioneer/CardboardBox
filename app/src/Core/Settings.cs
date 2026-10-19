@@ -29,6 +29,8 @@ namespace CardboardBox.Core
         public bool AutoRestartForUpdates = true;
         public bool BackupBeforeUpdates = true;
         public bool KeepPcAwake = true;
+        /// <summary>Install new versions of CardboardBox by themselves (never while people are playing).</summary>
+        public bool AutoUpdateApp = true;
         public int KeepBackups = 10;
 
         /// <summary>Server type chosen in the app (null = use cardboardbox.json from GitHub).</summary>
@@ -138,6 +140,7 @@ namespace CardboardBox.Core
                 s.AutoRestartForUpdates = d.Bool("autoRestartForUpdates", true);
                 s.BackupBeforeUpdates = d.Bool("backupBeforeUpdates", true);
                 s.KeepPcAwake = d.Bool("keepPcAwake", true);
+                s.AutoUpdateApp = d.Bool("autoUpdateApp", true);
                 s.KeepBackups = Math.Max(1, d.Int("keepBackups", 10));
                 s.PropertyOverrides = d.StrMap("propertyOverrides");
                 s.SoftwareOverride = d.Str("softwareOverride");
@@ -179,6 +182,7 @@ namespace CardboardBox.Core
                 ["autoRestartForUpdates"] = AutoRestartForUpdates,
                 ["backupBeforeUpdates"] = BackupBeforeUpdates,
                 ["keepPcAwake"] = KeepPcAwake,
+                ["autoUpdateApp"] = AutoUpdateApp,
                 ["keepBackups"] = KeepBackups,
                 ["propertyOverrides"] = PropertyOverrides,
                 ["softwareOverride"] = SoftwareOverride,

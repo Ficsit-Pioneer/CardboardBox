@@ -27,6 +27,7 @@ namespace CardboardBox.Core
         {
             Stats.Sample(Server.IsAlive ? Server.Process : null);
             Remote.Sync();
+            AutoUpdateTick();
             if (DateTime.Now >= NextCheck) _ = CheckForUpdatesAsync(false);
         }
 
@@ -293,7 +294,8 @@ namespace CardboardBox.Core
                 if (SelfUpdate.IsNewer(rel))
                 {
                     if (AppUpdate == null || AppUpdate.Tag != rel.Tag)
-                        Log.Info("A new version of CardboardBox (" + rel.Tag + ") is available - see the GitHub page.");
+                        Log.Info("A new version of CardboardBox (" + rel.Tag + ") is available" +
+                                 (Settings.AutoUpdateApp ? " - it installs by itself when nobody is playing." : " - see the GitHub page."));
                     AppUpdate = rel;
                 }
                 else if (manual) Log.Info("CardboardBox is up to date (version " + AppPaths.AppVersionText + ").");
@@ -308,9 +310,69 @@ namespace CardboardBox.Core
         public async Task InstallAppUpdateAsync()
         {
             if (AppUpdate == null) return;
-            if (Server.IsAlive) await StopAsync();
-            try { await SelfUpdate.InstallAndRestartAsync(AppUpdate, Progress); }
+            bool wasRunning = Server.IsAlive;
+            if (wasRunning) await StopAsync();
+            try { await SelfUpdate.InstallAndRestartAsync(AppUpdate, Progress, startServer: wasRunning); }
             finally { ClearBusy(); }
+        }
+
+        // ------------------------------------------------------------------ automatic app updates
+
+        /// <summary>Set when this copy was started by an update that should start the server again.</summary>
+        public bool StartServerOnLaunch { get; set; }
+
+        /// <summary>The window must close because a newer CardboardBox has been started.</summary>
+        public event Action ExitRequested;
+
+        private bool _autoUpdating;
+        private DateTime _nextAutoUpdateTry = DateTime.MinValue;
+
+        /// <summary>
+        /// Called every second: installs a waiting update when the server is stopped, or when it runs with
+        /// nobody online (then the new version starts the server again). Never while people are playing.
+        /// </summary>
+        private void AutoUpdateTick()
+        {
+            if (AppUpdate == null || !Settings.AutoUpdateApp || _autoUpdating || DateTime.Now < _nextAutoUpdateTry) return;
+            if (Server.IsAlive)
+            {
+                if (!Settings.AutoRestartForUpdates || Server.Status != ServerStatus.Running || Server.Players.Count > 0) return;
+            }
+            else if (Server.IsBusy || BusyText != null) return;
+            _ = AutoUpdateAsync(startServerAfter: Server.IsAlive);
+        }
+
+        /// <summary>Downloads and starts the new version. Returns true if this copy is about to close.</summary>
+        private async Task<bool> AutoUpdateAsync(bool startServerAfter)
+        {
+            if (_autoUpdating || AppUpdate == null) return false;
+            _autoUpdating = true;
+            bool wasRunning = Server.IsAlive;
+            try
+            {
+                Log.Info("Updating CardboardBox to " + AppUpdate.Tag + " automatically" +
+                         (wasRunning ? " (nobody is playing, so the server restarts with it)" : "") + "...");
+                if (wasRunning)
+                {
+                    Server.SendCommand("say [CardboardBox] Updating - back in a minute.");
+                    await StopAsync();
+                }
+                await SelfUpdate.InstallAndRestartAsync(AppUpdate, Progress, startServer: startServerAfter || wasRunning);
+                ExitRequested?.Invoke();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("The automatic update didn't work (it will be tried again in an hour): " + Errors.Friendly(ex));
+                _nextAutoUpdateTry = DateTime.Now.AddHours(1);
+                if (wasRunning && !Server.IsAlive) await StartAsync(); // put things back as they were
+                return false;
+            }
+            finally
+            {
+                _autoUpdating = false;
+                ClearBusy();
+            }
         }
 
         // ------------------------------------------------------------------ repo settings

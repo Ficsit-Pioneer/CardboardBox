@@ -12,6 +12,7 @@ namespace CardboardBox.UI.Pages
         private readonly NumericUpDown _interval;
         private readonly Label _applied, _checked, _next, _result, _tokenState, _appVersion;
         private readonly Button _checkNow, _installUpdate;
+        private readonly CheckBox _autoUpdate;
 
         public GitHubPage(MainForm main, AppController c)
             : base(main, c, "GitHub", "Your server's base files live in a public GitHub repo. CardboardBox keeps this PC in sync with it.")
@@ -101,7 +102,15 @@ namespace CardboardBox.UI.Pages
             checkApp.Click += (s, e) => Run(() => C.CheckForAppUpdateAsync(true), checkApp);
             _installUpdate = Theme.Primary("Install update");
             _installUpdate.Click += (s, e) => InstallAppUpdate();
-            app.Add(_appVersion,
+            _autoUpdate = new CheckBox { Text = "Install new versions by themselves (never while people are playing)", AutoSize = true, Margin = new Padding(0, 6, 0, 2) };
+            _autoUpdate.CheckedChanged += (s, e) =>
+            {
+                if (C.Settings.AutoUpdateApp == _autoUpdate.Checked) return;
+                C.Settings.AutoUpdateApp = _autoUpdate.Checked;
+                C.Settings.Save();
+                C.RaiseChanged();
+            };
+            app.Add(_appVersion, _autoUpdate,
                 Hint("New versions of CardboardBox are published as GitHub Releases in the same repo. Updating keeps all your server files."),
                 Theme.Row(checkApp, _installUpdate));
             Place(app);
@@ -137,6 +146,7 @@ namespace CardboardBox.UI.Pages
             _appVersion.Text = "You have version " + AppPaths.AppVersionText +
                                (C.AppUpdate != null ? " \u2014 version " + C.AppUpdate.Tag.TrimStart('v') + " is available!" : ".");
             _installUpdate.Enabled = C.AppUpdate != null;
+            _autoUpdate.Checked = C.Settings.AutoUpdateApp;
         }
 
         public override void Tick()

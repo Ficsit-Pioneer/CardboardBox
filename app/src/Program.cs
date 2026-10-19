@@ -48,7 +48,7 @@ namespace CardboardBox
 
                 SelfUpdate.CleanupOldExe();
                 Log.WriteFileOnly("==== CardboardBox " + AppPaths.AppVersionText + " starting ====");
-                Application.Run(new MainForm());
+                Application.Run(new MainForm(startServer: args.Contains("--start-server")));
                 try { mutex.ReleaseMutex(); } catch { }
             }
         }

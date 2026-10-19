@@ -22,7 +22,7 @@ namespace CardboardBox.Core
             rel != null && rel.Version != null && rel.ExeUrl != null && rel.Version > AppPaths.AppVersion;
 
         /// <summary>Downloads the new exe, swaps it in and starts it. The caller must then exit.</summary>
-        public static async Task InstallAndRestartAsync(ReleaseInfo rel, ProgressHandler progress)
+        public static async Task InstallAndRestartAsync(ReleaseInfo rel, ProgressHandler progress, bool startServer = false)
         {
             var exe = AppPaths.ExePath;
             var fresh = exe + ".new";
@@ -52,7 +52,7 @@ namespace CardboardBox.Core
             }
 
             Log.Success("Updated to CardboardBox " + rel.Tag + " - restarting.");
-            Process.Start(new ProcessStartInfo(exe, "--updated") { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe) });
+            Process.Start(new ProcessStartInfo(exe, "--updated" + (startServer ? " --start-server" : "")) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe) });
         }
     }
 }

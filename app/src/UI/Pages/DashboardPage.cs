@@ -193,7 +193,8 @@ namespace CardboardBox.UI.Pages
 
             // banner
             string banner = null;
-            if (C.AppUpdate != null) banner = "CardboardBox " + C.AppUpdate.Tag + " is available (you have " + AppPaths.AppVersionText + ").";
+            if (C.AppUpdate != null) banner = "CardboardBox " + C.AppUpdate.Tag + " is available (you have " + AppPaths.AppVersionText + ")" +
+                (C.Settings.AutoUpdateApp ? " - it installs by itself when nobody is playing." : ".");
             else if (C.RepoUpdatePending) banner = "New server files from GitHub are waiting - they're applied when the server restarts" + (C.Settings.AutoRestartForUpdates ? " (happening automatically)." : ".");
             else if (C.RestartNeeded && alive) banner = "Settings changed - restart the server to apply them.";
             _banner.Visible = banner != null;

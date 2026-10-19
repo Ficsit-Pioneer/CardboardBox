@@ -23,9 +23,9 @@ namespace CardboardBox.UI
         private Page _current;
         private bool _closingForReal;
 
-        public MainForm()
+        public MainForm(bool startServer = false)
         {
-            Controller = new AppController();
+            Controller = new AppController { StartServerOnLaunch = startServer };
 
             Text = "CardboardBox";
             Icon = Theme.AppIcon;
@@ -113,6 +113,7 @@ namespace CardboardBox.UI
             }
 
             Controller.Changed += RefreshAll;
+            Controller.ExitRequested += () => { _closingForReal = true; Close(); };
             Log.Message += (level, msg) => ConsoleView.AddAppLine(level, msg);
             Controller.Server.OutputLine += line => ConsoleView.AddServerLine(line);
 

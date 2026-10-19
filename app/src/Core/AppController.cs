@@ -162,11 +162,16 @@ namespace CardboardBox.Core
 
             ScheduleNextCheck();
             if (LastError != null) RetrySoon();
-            _ = CheckForAppUpdateAsync(false);
 
-            if (Settings.AutoStartServer && Settings.EulaAccepted && LastError == null)
+            // A new version is installed before the server starts, so there's no restart later.
+            bool wantServer = (Settings.AutoStartServer || StartServerOnLaunch) && Settings.EulaAccepted && LastError == null;
+            await CheckForAppUpdateAsync(false);
+            if (AppUpdate != null && Settings.AutoUpdateApp && await AutoUpdateAsync(startServerAfter: wantServer)) return;
+
+            if (wantServer)
             {
-                Log.Info("Starting the server automatically (you can turn this off in Server Settings).");
+                Log.Info(StartServerOnLaunch ? "Starting the server again after the update."
+                                             : "Starting the server automatically (you can turn this off in Server Settings).");
                 await StartAsync();
             }
         }

@@ -73,7 +73,7 @@ to this PC in your router settings. Friends then use the internet address shown 
 - **Works offline.** If GitHub can't be reached, it starts with the files from last time.
 - **playit.gg tunnels.** One browser approval, then CardboardBox creates the tunnel, downloads playit's official signed agent (checksum-verified) and runs it alongside the server.
 - **Never leaves a zombie server.** If CardboardBox is closed or crashes, Java is shut down with it, and the PC won't go to sleep while the server is running.
-- **Updates itself.** When a new release is published here, the app offers a one-click update.
+- **Updates itself.** When a new release is published here, CardboardBox installs it by itself at startup or while the server is stopped. If the server is running with nobody online, it restarts into the new version and starts the server again. It never updates while people are playing (switch it off on the GitHub page).
 
 ---
 
