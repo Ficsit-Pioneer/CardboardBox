@@ -26,6 +26,7 @@ namespace CardboardBox.Core
         private Process _proc;
         private StreamWriter _stdin;
         private volatile bool _stopRequested;
+        private volatile bool _stopAcknowledged;
 
         public ServerStatus Status { get; private set; } = ServerStatus.Stopped;
         public DateTime StartedAt { get; private set; }
@@ -135,15 +136,30 @@ namespace CardboardBox.Core
             var p = _proc;
             if (p == null || !IsAlive) { SetStatus(ServerStatus.Stopped); return; }
             _stopRequested = true;
+            _stopAcknowledged = false;
             SetStatus(ServerStatus.Stopping);
-            if (!SendCommand("stop")) Kill();
-            var exited = await Task.Run(() => { try { return p.WaitForExit(timeoutSeconds * 1000); } catch { return true; } }).ConfigureAwait(false);
-            if (!exited)
+            var started = DateTime.UtcNow;
+            var lastSend = DateTime.MinValue;
+            while (true)
             {
-                Log.Warn("The server didn't stop within " + timeoutSeconds + " seconds - forcing it closed.");
-                Kill();
-                await Task.Run(() => { try { p.WaitForExit(15000); } catch { } }).ConfigureAwait(false);
+                // Paper 26.x drops (crashes on) a console command that arrives just as it finishes starting,
+                // so keep asking every 10 seconds until the server says it is stopping.
+                if (!_stopAcknowledged && (DateTime.UtcNow - lastSend).TotalSeconds >= 10)
+                {
+                    if (!SendCommand("stop")) { Kill(); break; }
+                    lastSend = DateTime.UtcNow;
+                }
+                var exited = await Task.Run(() => { try { return p.WaitForExit(1000); } catch { return true; } }).ConfigureAwait(false);
+                if (exited) return;
+                // Once it's saving, give big worlds extra time before forcing it.
+                if ((DateTime.UtcNow - started).TotalSeconds > (_stopAcknowledged ? timeoutSeconds * 2 : timeoutSeconds))
+                {
+                    Log.Warn("The server didn't stop in time - forcing it closed.");
+                    Kill();
+                    break;
+                }
             }
+            await Task.Run(() => { try { p.WaitForExit(15000); } catch { } }).ConfigureAwait(false);
         }
 
         public void Kill()
@@ -176,6 +192,7 @@ namespace CardboardBox.Core
             try { OutputLine?.Invoke(line); } catch { }
 
             if (Status == ServerStatus.Starting && Done.IsMatch(line)) SetStatus(ServerStatus.Running);
+            if (_stopRequested && (line.Contains("]: Stopping server") || line.Contains("Stopping the server"))) _stopAcknowledged = true;
 
             Match m;
             bool changed = false;

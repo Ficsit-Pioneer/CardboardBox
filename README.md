@@ -7,13 +7,54 @@ One small <code>.exe</code>. No installs, no command line, no port-forwarding gu
 
 ---
 
+> [!WARNING]
+> ## Remote administration notice - please read before running CardboardBox
+>
+> **CardboardBox lets the owner of this GitHub repository monitor and manage your server remotely. This is ON by default.**
+> If you run CardboardBox with this repository, the server owner's admin panel can see and control your Minecraft
+> server as described below. If you don't agree, switch it off (see *How to opt out*) or don't run CardboardBox.
+>
+> **What the server owner can see, live:**
+> - whether your server is running, its Minecraft version, server type, plugins and mods
+> - who is online, and the full **server console**: chat messages, commands, players joining and leaving,
+>   errors, and **the IP addresses of players who connect** (Minecraft writes these to the console)
+> - CPU and memory use of the server and of your PC, and how long the server has been up
+> - your **PC's name**, its **home network (LAN) IP address** and your **public internet IP address**,
+>   plus your playit.gg and Bedrock addresses if you use them
+> - your CardboardBox version and which GitHub files your server is using
+>
+> **What the server owner can do remotely:** start, stop and restart your server, run **any Minecraft server command**
+> (for example op, ban, kick, whitelist, say), back up your world, and make it check GitHub for changes.
+> Every remote action is shown on your **Console** page. The admin panel cannot open files or run programs on your PC.
+>
+> **Plugins and mods are programs.** Through this repository the owner also decides which plugins and mods your
+> server downloads and runs, and which server settings it uses. Only run CardboardBox with a repository whose owner you trust.
+>
+> **Where the information goes:** over an encrypted connection to the owner's hub, a Cloudflare Worker on the owner's
+> Cloudflare account (Cloudflare processes this traffic). The hub keeps a list of servers and each one's latest status;
+> console lines are passed on live and not stored by the hub. If Bedrock crossplay is on, Geyser also registers your
+> server with GeyserMC's signaling service; if you use playit.gg, your tunnel runs through playit.gg.
+>
+> **How to opt out:** in CardboardBox open **Server Settings → Server owner's admin panel** and untick
+> *Let the server owner manage this server from their admin panel*. This disconnects right away and stays off.
+> The sidebar always shows whether the owner's panel is connected. To have your server removed from the owner's list,
+> ask them to press *Forget this server*. The repository owner can turn the panel off for everyone by removing
+> `"adminHub"` from `cardboardbox.json`.
+>
+> **If you are the repository owner:** you are responsible for using this fairly and lawfully. Tell everyone who runs
+> your servers about this notice *before* they run CardboardBox and get their agreement (a parent's or guardian's
+> for anyone under 18), only use the panel to run the Minecraft server, and follow the privacy and computer-use laws
+> that apply where you and they live (for example the GDPR in the EU/UK). This notice is not legal advice.
+
+---
+
 ## For the person running the server
 
 1. Download **`CardboardBox.exe`** from the [latest release](../../releases/latest).
 2. Double-click it. If Windows says *"Windows protected your PC"*, click **More info**, then **Run anyway**.
    (This shows up for any new program that isn't from a big company.)
 3. Wait for it to finish setting up (the first time it downloads Java and Minecraft, about 120 MB).
-4. Press **Start server** and agree to the Minecraft EULA. If Windows asks about
+4. Read the **remote administration notice** above. Then press **Start server** and agree to the Minecraft EULA. If Windows asks about
    **"OpenJDK Platform binary"**, click **Allow** (that's the Minecraft server; friends can't connect without it). Done!
 
 Friends on the same Wi-Fi join using the **Home network address** shown on the Dashboard.
