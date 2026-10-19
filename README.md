@@ -2,7 +2,7 @@
 
 <h1 align="center">CardboardBox</h1>
 
-<p align="center"><b>The simplest way to run a Minecraft server on Windows.</b><br>
+<p align="center"><b>For one of my friends, but you all can still use it. The simplest way to run a Minecraft server on Windows.</b><br>
 One small <code>.exe</code>. No installs, no command line, no port-forwarding guides (well, mostly).</p>
 
 ---
