@@ -204,6 +204,66 @@ namespace CardboardBox.UI.Pages
             }, _applyType);
         }
 
+        // ------------------------------------------------------------------ owner's admin panel
+
+        private CheckBox _allowRemote;
+        private TextBox _remoteName;
+        private Label _remoteState;
+        private bool _loadingRemote;
+
+        private void BuildRemoteCard()
+        {
+            var card = new Card("Server owner's admin panel");
+            _allowRemote = new CheckBox { Text = "Let the server owner manage this server from their admin panel", AutoSize = true, Margin = new Padding(0, 4, 0, 4) };
+            _allowRemote.CheckedChanged += (s, e) =>
+            {
+                if (_loadingRemote) return;
+                C.Settings.AllowRemoteAdmin = _allowRemote.Checked;
+                C.Settings.Save();
+                C.Remote.Sync();
+                Log.Info(_allowRemote.Checked ? "The server owner's admin panel is allowed again." : "The server owner's admin panel was switched off on this PC.");
+                RefreshRemote();
+            };
+            _remoteName = new TextBox { Width = 260 };
+            _remoteName.Leave += (s, e) =>
+            {
+                var name = _remoteName.Text.Trim();
+                if (name == (C.Settings.RemoteName ?? "")) return;
+                C.Settings.RemoteName = name.Length == 0 ? null : name;
+                C.Settings.Save();
+                C.Remote.Stop();   // reconnect so the new name shows up
+                C.Remote.Sync();
+            };
+            _remoteState = new Label { AutoSize = true, Font = Theme.Bold, UseMnemonic = false, Margin = new Padding(0, 6, 0, 0) };
+            card.Add(
+                Hint("They can see this server's status and console, run Minecraft commands, start / stop / restart it, back up the world and check GitHub. " +
+                     "They can't see or change anything else on this PC, and everything they do appears on the Console page."),
+                _allowRemote,
+                Theme.Row(Theme.Stack(FieldLabel("Name shown in their panel"), _remoteName)),
+                _remoteState);
+            Place(card, 2);
+        }
+
+        private void RefreshRemote()
+        {
+            if (_allowRemote == null) return;
+            _loadingRemote = true;
+            try
+            {
+                bool available = C.Remote.Available;
+                _allowRemote.Checked = C.Settings.AllowRemoteAdmin;
+                _allowRemote.Enabled = available;
+                if (!_remoteName.Focused) _remoteName.Text = C.Settings.RemoteName ?? C.Remote.DisplayName;
+                _remoteName.Enabled = available;
+                _remoteState.Text = !available ? "The server owner hasn't set up an admin panel."
+                    : !C.Settings.AllowRemoteAdmin ? "Off - the owner can't see or manage this server."
+                    : C.Remote.Connected ? "\u25CF Connected - the owner can see and manage this server."
+                    : C.Remote.StateText;
+                _remoteState.ForeColor = C.Remote.Connected && C.Settings.AllowRemoteAdmin ? Theme.Green : Theme.Muted;
+            }
+            finally { _loadingRemote = false; }
+        }
+
         // ------------------------------------------------------------------ world
 
         private void BuildWorldCard()

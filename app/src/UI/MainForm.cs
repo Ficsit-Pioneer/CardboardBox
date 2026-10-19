@@ -17,7 +17,7 @@ namespace CardboardBox.UI
         private readonly List<Page> _pages = new List<Page>();
         private readonly Dictionary<Page, Button> _nav = new Dictionary<Page, Button>();
         private readonly Panel _host;
-        private readonly Label _statusDot, _statusText, _sideStatus;
+        private readonly Label _statusDot, _statusText, _sideStatus, _sideRemote;
         private readonly ProgressBar _progress;
         private readonly Timer _timer;
         private Page _current;
@@ -62,8 +62,10 @@ namespace CardboardBox.UI
             var bottomLinks = new FlowLayoutPanel
             {
                 FlowDirection = FlowDirection.TopDown, WrapContents = false, Dock = DockStyle.Bottom,
-                Height = 92, Padding = new Padding(14, 6, 6, 6), BackColor = Theme.Sidebar,
+                Height = 116, Padding = new Padding(14, 6, 6, 6), BackColor = Theme.Sidebar,
             };
+            _sideRemote = new Label { AutoSize = true, Font = Theme.Small, ForeColor = Theme.SidebarText, Margin = new Padding(0, 0, 0, 6), UseMnemonic = false, Visible = false };
+            bottomLinks.Controls.Add(_sideRemote);
             bottomLinks.Controls.Add(SideLink("Open server folder", () => Theme.OpenFolder(AppPaths.Root)));
             bottomLinks.Controls.Add(SideLink("Open GitHub repo", () => Theme.OpenUrl(Controller.Settings.RepoUrl)));
             bottomLinks.Controls.Add(new Label { Text = "Version " + AppPaths.AppVersionText, ForeColor = Theme.Gray, Font = Theme.Small, AutoSize = true, Margin = new Padding(0, 6, 0, 0) });
@@ -162,6 +164,9 @@ namespace CardboardBox.UI
             var s = Controller.Server.Status;
             _statusDot.ForeColor = StatusColor(s);
             _sideStatus.Text = StatusText(s);
+            _sideRemote.Visible = Controller.Remote.Available;
+            _sideRemote.Text = "Owner's admin panel: " + (Controller.Settings.AllowRemoteAdmin ? Controller.Remote.StateText.ToLowerInvariant() : "off");
+            _sideRemote.ForeColor = Controller.Remote.Connected ? Color.FromArgb(0x8F, 0xD8, 0x9A) : Theme.SidebarText;
 
             if (Controller.BusyText != null)
             {

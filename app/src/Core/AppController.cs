@@ -51,7 +51,22 @@ namespace CardboardBox.Core
             Server.Exited += (code, crashed) => _ui.Post(_ => OnServerExited(code, crashed), null);
             Playit.Changed += RaiseChanged;
             Server.OutputLine += WatchGeyserOutput;
+            Remote = new RemoteAdmin(this);
             Server.StatusChanged += () => { if (Server.Status == ServerStatus.Running) _ui.Post(_ => OnServerRunning(), null); };
+        }
+
+        public RemoteAdmin Remote { get; }
+
+        /// <summary>Runs work on the UI thread (where all server control happens) and returns its result.</summary>
+        public Task<T> RunOnUiAsync<T>(Func<Task<T>> work)
+        {
+            var tcs = new TaskCompletionSource<T>();
+            _ui.Post(async _ =>
+            {
+                try { tcs.SetResult(await work()); }
+                catch (Exception ex) { tcs.SetException(ex); }
+            }, null);
+            return tcs.Task;
         }
 
         public void RaiseChanged() => _ui.Post(_ => { try { Changed?.Invoke(); } catch (Exception ex) { Log.WriteFileOnly("UI refresh failed: " + ex); } }, null);

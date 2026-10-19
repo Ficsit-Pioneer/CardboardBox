@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CardboardBox Admin</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 6 59 19 32 32 5 19Z' fill='%23deb278'/%3E%3Cpath d='M5 19 32 32 32 60 5 46Z' fill='%23c48e55'/%3E%3Cpath d='M32 32 59 19 59 46 32 60Z' fill='%23a5723f'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M32 6 59 19 32 32 5 19Z" fill="#deb278"/><path d="M5 19 32 32 32 60 5 46Z" fill="#c48e55"/>
+        <path d="M32 32 59 19 59 46 32 60Z" fill="#a5723f"/><path d="M16 12 22 9 49 22 43 25Z" fill="#f1dbb0"/>
+      </svg>
+      <div><b>CardboardBox</b><span>Admin panel</span></div>
+    </div>
+    <div class="top-right">
+      <span id="conn" class="pill off">Not connected</span>
+      <button id="logout" class="ghost" hidden>Log out</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="login" class="card login">
+      <h1>Sign in</h1>
+      <p class="muted">Enter the admin password you set with <code>npx wrangler secret put ADMIN_KEY</code>.</p>
+      <form id="loginForm">
+        <input id="password" type="password" autocomplete="current-password" placeholder="Admin password" required>
+        <label class="check"><input id="remember" type="checkbox" checked> Remember on this device</label>
+        <button type="submit" class="primary">Open panel</button>
+        <p id="loginError" class="error" role="alert"></p>
+      </form>
+    </section>
+
+    <section id="app" class="layout" hidden>
+      <aside class="list">
+        <div class="list-head"><h2>Servers</h2><span id="count" class="muted"></span></div>
+        <div id="servers"></div>
+        <p id="empty" class="muted empty">No servers yet. Any CardboardBox using your GitHub repo shows up here once it starts.</p>
+      </aside>
+
+      <section id="detail" class="detail">
+        <p class="muted pick">Pick a server on the left.</p>
+      </section>
+    </section>
+  </main>
+
+  <template id="detailTemplate">
+    <div class="detail-head">
+      <div>
+        <h1 data-f="name"></h1>
+        <p class="muted" data-f="sub"></p>
+      </div>
+      <span class="pill" data-f="pill"></span>
+    </div>
+    <p class="note" data-f="note" hidden></p>
+    <div class="actions">
+      <button class="primary" data-a="start">Start</button>
+      <button data-a="stop">Stop</button>
+      <button data-a="restart">Restart</button>
+      <button data-a="backup">Back up world</button>
+      <button data-a="check">Check GitHub now</button>
+    </div>
+    <div class="tiles">
+      <div class="tile"><span>Players</span><b data-f="players"></b><small data-f="playerNames"></small></div>
+      <div class="tile"><span>CPU</span><b data-f="cpu"></b><small data-f="cpuSys"></small></div>
+      <div class="tile"><span>RAM</span><b data-f="ram"></b><small data-f="ramSys"></small></div>
+      <div class="tile"><span>Uptime</span><b data-f="uptime"></b><small data-f="lastSeen"></small></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Server</h3>
+        <dl>
+          <dt>Software</dt><dd data-f="installed"></dd>
+          <dt>Crossplay</dt><dd data-f="crossplay"></dd>
+          <dt>GitHub files</dt><dd data-f="github"></dd>
+          <dt>CardboardBox</dt><dd data-f="app"></dd>
+          <dt>PC</dt><dd data-f="pc"></dd>
+        </dl>
+      </div>
+      <div class="card">
+        <h3>How players join</h3>
+        <dl>
+          <dt>Java, same Wi-Fi</dt><dd data-f="javaLan"></dd>
+          <dt>Java, internet</dt><dd data-f="javaNet"></dd>
+          <dt>Bedrock, same Wi-Fi</dt><dd data-f="bedLan"></dd>
+          <dt>Bedrock, internet</dt><dd data-f="bedNet"></dd>
+        </dl>
+      </div>
+    </div>
+    <div class="card console-card">
+      <div class="console-head"><h3>Console</h3><span class="muted" data-f="consoleHint"></span></div>
+      <pre class="console" data-f="console"></pre>
+      <form class="cmd" data-f="cmdForm">
+        <input data-f="cmd" placeholder="Type a command, e.g. say Hello! or list" autocomplete="off">
+        <button class="primary" type="submit">Send</button>
+      </form>
+    </div>
+    <p class="forget"><button class="danger ghost" data-a="forget">Forget this server</button></p>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>

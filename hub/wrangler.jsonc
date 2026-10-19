@@ -1,0 +1,15 @@
+// CardboardBox Hub: the admin panel + relay every CardboardBox connects to.
+// Deploy:            npx wrangler deploy
+// Set your password: npx wrangler secret put ADMIN_KEY
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cardboardbox-hub",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+  "assets": { "directory": "./public" },
+  "durable_objects": {
+    "bindings": [{ "name": "HUB", "class_name": "Hub" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Hub"] }],
+  "observability": { "enabled": true }
+}

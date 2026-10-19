@@ -46,6 +46,8 @@ namespace CardboardBox.Core
         public string LoaderVersion;
         /// <summary>Let Bedrock players (phones, consoles, Windows) join too, using Geyser + Floodgate.</summary>
         public bool Crossplay;
+        /// <summary>Address of the owner's admin hub (hub/ in the repo), e.g. https://cardboardbox-hub.name.workers.dev</summary>
+        public string AdminHub;
         /// <summary>0 = newest stable Paper build for that version.</summary>
         public int PaperBuild;
         /// <summary>0 = pick automatically from what Paper says it needs.</summary>
@@ -83,6 +85,7 @@ namespace CardboardBox.Core
                 MinecraftVersion = d.Str("minecraftVersion", "latest"),
                 LoaderVersion = d.Str("loaderVersion"),
                 Crossplay = d.Bool("crossplay"),
+                AdminHub = d.Str("adminHub"),
                 PaperBuild = d.Int("paperBuild", 0),
                 JavaVersion = d.Int("javaVersion", 0),
                 DefaultRamGB = Math.Max(1, d.Int("defaultRamGB", 4)),

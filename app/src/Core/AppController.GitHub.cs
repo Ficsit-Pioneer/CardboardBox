@@ -26,6 +26,7 @@ namespace CardboardBox.Core
         public void Tick()
         {
             Stats.Sample(Server.IsAlive ? Server.Process : null);
+            Remote.Sync();
             if (DateTime.Now >= NextCheck) _ = CheckForUpdatesAsync(false);
         }
 

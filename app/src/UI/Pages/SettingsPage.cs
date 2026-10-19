@@ -103,6 +103,8 @@ namespace CardboardBox.UI.Pages
                 Theme.Row(_playitSetup, _playitForget, Theme.Link("Open my playit.gg dashboard", () => Theme.OpenUrl(Playit.DashboardUrl))));
             Place(share, 2);
 
+            BuildRemoteCard();
+
             // ---------- automatic behaviour
             var auto = new Card("CardboardBox behaviour");
             _autoStart = new CheckBox { Text = "Start the server when CardboardBox opens", AutoSize = true };
@@ -268,6 +270,7 @@ namespace CardboardBox.UI.Pages
         public override void RefreshView()
         {
             RefreshServerType();
+            RefreshRemote();
             _refreshingPlayit = true;
             try
             {

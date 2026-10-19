@@ -58,7 +58,7 @@ to this PC in your router settings. Friends then use the internet address shown 
 |---|---|
 | **Dashboard** | Start / Stop / Restart, players online, CPU and RAM (with live charts), uptime, server type and version, server addresses (including playit.gg and Bedrock), GitHub sync status, a message from the server owner |
 | **Console** | Live server log, a box to type commands, and quick buttons (who's online, save, TPS, plugins) |
-| **Server Settings** | Server type / Minecraft version / crossplay, server message (MOTD) with a live preview, server icon, max players, RAM, difficulty, game mode, port, whitelist, world seed / type / hardcore, *start a new world*, playit.gg, and auto-restart / backup options |
+| **Server Settings** | Server type / Minecraft version / crossplay, server message (MOTD) with a live preview, server icon, max players, RAM, difficulty, game mode, port, whitelist, world seed / type / hardcore, *start a new world*, playit.gg, the server owner's admin panel (on/off), and auto-restart / backup options |
 | **Plugins & Mods** | Everything installed (plugins or mods, whichever your server type uses), **search Modrinth and install with one click** (required add-ons come along), add `.jar` files, turn things on/off, upload to GitHub |
 | **Players** | Online / operators / whitelist / banned lists, plus one-click op, kick, ban, whitelist |
 | **Backups** | Back up the world (even while it's running), restore, and keep the newest *N* backups |
@@ -91,6 +91,7 @@ server/                  <- copied into the server folder on every PC
   config/                <- mod config files
   ...anything else       <- bukkit.yml, paper configs, datapacks, etc.
 app/                     <- the CardboardBox source code (C#)
+hub/                     <- your admin panel + relay (a Cloudflare Worker), see "Your admin panel"
 ```
 
 Edit files on github.com (or push with git). Within an hour every server picks up the change.
@@ -105,6 +106,7 @@ To push a change immediately, your friend can press **Check GitHub now**.
   "minecraftVersion": "26.2",          // e.g. 26.2, or "latest"
   "loaderVersion": "",                 // empty = newest stable Paper/Purpur build, Fabric loader, NeoForge or Forge version
   "crossplay": false,                  // true = Bedrock players can join too (Geyser + Floodgate)
+  "adminHub": "https://...workers.dev", // your admin panel (see below); leave out for none
   "javaVersion": 0,                    // 0 = automatic (what that Minecraft version needs)
   "defaultRamGB": 4,                   // capped to what the PC can spare
   "announcement": "Hi!",               // shown on everyone's Dashboard
@@ -149,6 +151,33 @@ Downloading never needs an account. If you want the friend to be able to upload 
 from the app, make a [fine-grained token](https://github.com/settings/personal-access-tokens/new)
 limited to this repo with **Contents: Read and write**, and paste it on the app's GitHub page.
 It's stored encrypted with Windows' DPAPI for that Windows user only.
+
+### Your admin panel (manage every server from one page)
+
+Open **https://cardboardbox-hub.william-h-morin.workers.dev** to see every CardboardBox that uses this repo:
+whether it's running, players, CPU / RAM, uptime, how players join, and a live console. From there you can
+**start, stop, restart, run any Minecraft command, back up the world and make it check GitHub**, without
+needing access to anyone's PC.
+
+**First time:** set your admin password (only you know it). In a terminal in this repo:
+
+```powershell
+cd hub
+npm install
+npx wrangler secret put ADMIN_KEY
+```
+
+Type a long password when asked, then sign in on the panel with it. Run the last command again any time to change it.
+
+How it works and what your friends see:
+
+- Each CardboardBox connects *out* to the hub (`hub/`, a free Cloudflare Worker on your account), so nobody needs
+  port forwarding. Servers send their status every minute, or every 5 seconds while you have the panel open.
+- The hub's address is `"adminHub"` in `cardboardbox.json`. Remove it to switch the panel off for everyone.
+- On a friend's PC the sidebar shows **Owner's admin panel: connected**, every action you take appears in their
+  Console, and **Server Settings → Server owner's admin panel** lets them switch it off or change the name you see.
+- The panel can only control the Minecraft server. It can't see or change anything else on anyone's PC.
+- To update the hub after changing `hub/`: `cd hub`, then `npx wrangler deploy`.
 
 ### Releasing a new version of the app
 

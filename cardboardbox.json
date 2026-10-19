@@ -5,6 +5,7 @@
   "minecraftVersion": "26.2",
   "loaderVersion": "",
   "crossplay": true,
+  "adminHub": "https://cardboardbox-hub.william-h-morin.workers.dev",
   "javaVersion": 0,
   "defaultRamGB": 4,
   "announcement": "Welcome to CardboardBox! Press Start, then share the address on the Dashboard with your friends.",

@@ -54,6 +54,14 @@ namespace CardboardBox.Core
         /// <summary>Address GeyserMC's signaling service (Warden) gave this server, e.g. name.wdn.gg (port 443).</summary>
         public string BedrockInternetAddress;
 
+        /// <summary>Let the server owner manage this server from their admin panel (if they set one up).</summary>
+        public bool AllowRemoteAdmin = true;
+        /// <summary>Name shown in the owner's admin panel (empty = this PC's name).</summary>
+        public string RemoteName;
+        /// <summary>This PC's identity on the admin hub (created on first connection).</summary>
+        public string RemoteId;
+        private string _remoteSecretProtected;
+
         private string _tokenProtected;
         private string _playitProtected;
 
@@ -91,6 +99,12 @@ namespace CardboardBox.Core
         }
 
         public bool HasPlayit => !string.IsNullOrEmpty(PlayitSecret);
+
+        public string RemoteSecret
+        {
+            get { return Unprotect(_remoteSecretProtected); }
+            set { _remoteSecretProtected = Protect(value); }
+        }
 
         private static string Protect(string value)
         {
@@ -138,6 +152,10 @@ namespace CardboardBox.Core
                 s.PlayitBedrockAddress = d.Str("playitBedrockAddress");
                 s.BedrockInternetAddress = d.Str("bedrockInternetAddress");
                 s._playitProtected = d.Str("playitSecretEncrypted");
+                s.AllowRemoteAdmin = d.Bool("allowRemoteAdmin", true);
+                s.RemoteName = d.Str("remoteName");
+                s.RemoteId = d.Str("remoteId");
+                s._remoteSecretProtected = d.Str("remoteSecretEncrypted");
             }
             catch (Exception ex)
             {
@@ -174,6 +192,10 @@ namespace CardboardBox.Core
                 ["playitBedrockAddress"] = PlayitBedrockAddress,
                 ["bedrockInternetAddress"] = BedrockInternetAddress,
                 ["playitSecretEncrypted"] = _playitProtected,
+                ["allowRemoteAdmin"] = AllowRemoteAdmin,
+                ["remoteName"] = RemoteName,
+                ["remoteId"] = RemoteId,
+                ["remoteSecretEncrypted"] = _remoteSecretProtected,
             };
             try { Json.WriteFile(AppPaths.Settings, d); }
             catch (Exception ex) { Log.Error("Couldn't save settings", ex); }

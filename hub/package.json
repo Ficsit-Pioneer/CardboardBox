@@ -1,0 +1,13 @@
+{
+  "name": "cardboardbox-hub",
+  "private": true,
+  "description": "Admin panel and relay for CardboardBox servers",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "set-password": "wrangler secret put ADMIN_KEY"
+  },
+  "devDependencies": {
+    "wrangler": "^4.151.1"
+  }
+}
